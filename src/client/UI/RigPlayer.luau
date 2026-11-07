@@ -155,6 +155,8 @@ local SIZE_FACTOR = 2.4
 -- Seuls les petits blocs lumineux (yeux, braises, pointes de flammes) restent
 -- en Neon ; les grandes masses de flammes passent en mat (sinon tout éblouit).
 local NEON_MAX_VOXELS = 2
+-- Assombrissement des flammes et de la crinière (0 = couleur d'origine).
+local FLAME_DIM = 0.18
 
 -- Construit le modèle à la taille voulue.
 function RigPlayer.build(data, size: number): Model
@@ -225,9 +227,13 @@ function RigPlayer.build(data, size: number): Model
 				p.TopSurface = Enum.SurfaceType.Smooth
 				p.BottomSurface = Enum.SurfaceType.Smooth
 				p.Size = Vector3.new(b[4], b[5], b[6]) * vox * k
-				p.Color = entry[1]
+				-- Flammes et crinière : jamais en Neon (éblouissant), couleur un peu
+				-- adoucie. Le Neon reste pour les petits détails (yeux, braises).
+				local lowered = string.lower(node.Name)
+				local flame = string.find(lowered, "flamme", 1, true) ~= nil or string.find(lowered, "criniere", 1, true) ~= nil
 				local small = b[4] * b[5] * b[6] <= NEON_MAX_VOXELS
-				p.Material = if entry[2] and small then Enum.Material.Neon else Enum.Material.SmoothPlastic
+				p.Color = if flame and entry[2] then entry[1]:Lerp(Color3.new(0, 0, 0), FLAME_DIM) else entry[1]
+				p.Material = if entry[2] and small and not flame then Enum.Material.Neon else Enum.Material.SmoothPlastic
 				p.Transparency = entry[3] or 0
 				p:SetAttribute("BaseT", p.Transparency)
 				p.CFrame = joint.CFrame * CFrame.new((Vector3.new(b[1], b[2], b[3]) + Vector3.new(b[4], b[5], b[6]) / 2) * vox * k)
