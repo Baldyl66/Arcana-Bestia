@@ -954,204 +954,199 @@ end
 -- L'Arène des Champions : colisée à arcades sur deux niveaux, piste de sable,
 -- gradins, loge d'honneur et grande porte face à l'avenue de l'Est.
 ---------------------------------------------------------------------------
+-- « Le Cercle des Arcanes » : terrain de duel à ciel ouvert, sans murs.
+-- Estrade ronde en pierre sculptée, cercle magique gravé (runes, hexagramme),
+-- six piliers élémentaires à cristal flottant, pierres runiques en lévitation
+-- (animées côté client, CircleFX), bancs et bannières en retrait.
+-- Le modèle garde le nom « Colosseum » (repères et scripts existants).
 local function buildColosseum()
 	local col = Instance.new("Model")
 	col.Name = "Colosseum"
 	col.Parent = World
 	local c = L.Colosseum
 	local base = Vector3.new(c.X, GROUND, c.Y)
-	local R = 48
-	local SEG = 40
 	local gate = L.ColosseumGate
-	local sand = Color3.fromRGB(226, 196, 140)
-	local stone = Color3.fromRGB(214, 198, 168)
-	local stoneDark = Color3.fromRGB(176, 160, 132)
-	local marble = Color3.fromRGB(236, 230, 218)
-	local red = Color3.fromRGB(150, 32, 42)
+	local stoneDark = Color3.fromRGB(92, 88, 104)
+	local stone = Color3.fromRGB(168, 160, 172)
+	local marble = Color3.fromRGB(184, 180, 196)
 	local gold = Color3.fromRGB(220, 175, 80)
+	local arcane = Color3.fromRGB(150, 110, 255)
+	local ELEMENTS = {
+		{ "Feu", Color3.fromRGB(255, 120, 60) },
+		{ "Eau", Color3.fromRGB(70, 165, 255) },
+		{ "Nature", Color3.fromRGB(95, 205, 110) },
+		{ "Foudre", Color3.fromRGB(255, 220, 70) },
+		{ "Ombre", Color3.fromRGB(150, 95, 225) },
+		{ "Lumiere", Color3.fromRGB(255, 240, 185) },
+	}
 
-	local function angleDiff(a: number, b: number): number
-		return math.abs(((a - b) + 180) % 360 - 180)
-	end
-	-- Repère tourné vers le centre (-Z vers la piste), à un angle et un rayon donnés.
-	local function polar(angleDeg: number, radius: number, y: number): CFrame
+	local function at(angleDeg: number, radius: number, y: number): Vector3
 		local r = math.rad(angleDeg)
-		local pos = base + Vector3.new(math.cos(r) * radius, y, math.sin(r) * radius)
+		return base + Vector3.new(math.cos(r) * radius, y, math.sin(r) * radius)
+	end
+	-- Repère tourné vers le centre.
+	local function facing(angleDeg: number, radius: number, y: number): CFrame
+		local pos = at(angleDeg, radius, y)
 		return CFrame.lookAt(pos, Vector3.new(base.X, pos.Y, base.Z))
 	end
-	local function isGate(a: number): boolean
-		return angleDiff(a, gate) < 9
-	end
-	local stairs = { gate + 45, gate - 45, gate + 135, gate - 135 }
-	local function isStair(a: number): boolean
-		for _, s in ipairs(stairs) do
-			if angleDiff(a, s) < 4.6 then
-				return true
-			end
+	local function disc(name: string, radius: number, y0: number, y1: number, material: Enum.Material, color: Color3, deco: boolean?)
+		local p = part({ Name = name, Shape = Enum.PartType.Cylinder, Size = Vector3.new(y1 - y0, radius * 2, radius * 2),
+			CFrame = vertical(CFrame.new(base + Vector3.new(0, (y0 + y1) / 2, 0))), Material = material, Color = color, Parent = col })
+		if deco then
+			decorative(p)
 		end
-		return false
+		return p
 	end
-	local function gateOrStair(a: number): boolean
-		return isGate(a) or isStair(a)
+
+	-- Estrade : deux marches, dalle de marbre.
+	local TOP = GROUND + 1.8
+	disc("Socle", 31, GROUND - 2, GROUND + 0.7, M.Slate, stoneDark)
+	disc("Marche", 28.5, GROUND + 0.7, GROUND + 1.3, M.Limestone, stone)
+	disc("Estrade", 26.5, GROUND + 1.3, TOP, M.Marble, marble)
+	-- Frise sculptée : blocs dorés sur le pourtour de l'estrade.
+	for i = 0, 47 do
+		local a = i * 7.5
+		decorative(part({ Name = "Frise", Size = Vector3.new(0.5, 0.35, 1.2), CFrame = facing(a, 26.55, TOP - 0.25), Material = M.Metal,
+			Color = gold, Parent = col }))
 	end
-	local function ring(radius: number, depth: number, y0: number, y1: number, material: Enum.Material, color: Color3, name: string,
-		skip: ((number) -> boolean)?)
-		for i = 0, SEG - 1 do
-			local a = (i + 0.5) * 360 / SEG
-			if not (skip and skip(a)) then
-				part({ Name = name, Size = Vector3.new(2 * math.pi * radius / SEG + 0.3, y1 - y0, depth), CFrame = polar(a, radius, (y0 + y1) / 2),
-					Material = material, Color = color, Parent = col })
-			end
+
+	-- Cercle magique gravé : anneaux, runes et hexagramme lumineux.
+	local runes = Instance.new("Folder")
+	runes.Name = "Runes"
+	runes.Parent = col
+	local function glow(p: BasePart)
+		decorative(p)
+		p.Material = M.Neon
+		p.Color = arcane
+		p.Transparency = 0.25
+		p.Parent = runes
+		return p
+	end
+	local G = TOP + 0.03
+	for _, r in ipairs({ 22.5, 20.8, 9.5, 8.6 }) do
+		glow(part({ Name = "Anneau", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.04, r * 2, r * 2), CFrame = vertical(CFrame.new(base + Vector3.new(0, G, 0))) }))
+		-- Le centre de l'anneau est recouvert de marbre pour ne garder qu'un trait.
+		decorative(part({ Name = "Creux", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.05, r * 2 - 0.5, r * 2 - 0.5),
+			CFrame = vertical(CFrame.new(base + Vector3.new(0, G + 0.005, 0))), Material = M.Marble, Color = marble, Parent = col }))
+	end
+	-- Runes entre les deux grands anneaux.
+	for i = 0, 35 do
+		local a = i * 10
+		local cf = facing(a, 21.65, G + 0.02) * CFrame.Angles(0, math.rad(i % 2 == 0 and 0 or 45), 0)
+		glow(part({ Name = "Rune", Size = Vector3.new(i % 3 == 0 and 0.9 or 0.5, 0.05, i % 3 == 0 and 0.25 or 0.5), CFrame = cf }))
+	end
+	-- Hexagramme inscrit (deux triangles).
+	for t = 0, 1 do
+		for k = 0, 2 do
+			local a1 = gate + 90 + t * 60 + k * 120
+			local a2 = a1 + 120
+			local p1, p2 = at(a1, 20.6, G + 0.03), at(a2, 20.6, G + 0.03)
+			local mid = (p1 + p2) / 2
+			glow(part({ Name = "Trait", Size = Vector3.new(0.3, 0.05, (p2 - p1).Magnitude), CFrame = CFrame.lookAt(mid, p2) }))
 		end
 	end
+	-- Sceau central.
+	glow(part({ Name = "Sceau", Size = Vector3.new(3, 0.06, 3), CFrame = CFrame.new(base + Vector3.new(0, G + 0.04, 0)) * CFrame.Angles(0, math.rad(45), 0) }))
+	local sealLight = Instance.new("PointLight")
+	sealLight.Name = "Halo"
+	sealLight.Color = arcane
+	sealLight.Brightness = 1.2
+	sealLight.Range = 26
+	sealLight.Parent = runes:FindFirstChild("Sceau")
 
-	-- Piste de sable et cercle de duel.
-	part({ Name = "Sand", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1, 50, 50), CFrame = vertical(CFrame.new(base)), Material = M.Sand,
-		Color = sand, Parent = col })
-	decorative(part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.06, 22, 22), CFrame = vertical(CFrame.new(base + Vector3.new(0, 0.52, 0))),
-		Material = M.Neon, Color = Color3.fromRGB(255, 180, 80), Parent = col }))
-	decorative(part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.08, 21, 21), CFrame = vertical(CFrame.new(base + Vector3.new(0, 0.52, 0))),
-		Material = M.Sand, Color = sand:Lerp(Color3.new(0, 0, 0), 0.06), Parent = col }))
-	decorative(part({ Size = Vector3.new(2.4, 0.1, 2.4), CFrame = CFrame.new(base + Vector3.new(0, 0.56, 0)) * CFrame.Angles(0, math.rad(45), 0),
-		Material = M.Neon, Color = Color3.fromRGB(150, 110, 255), Parent = col }))
-
-	-- Mur du podium et sa corniche de marbre.
-	ring(25, 1.6, GROUND, 5, M.Limestone, stone, "PodiumWall", gateOrStair)
-	ring(25.2, 2.2, 5, 5.5, M.Marble, marble, "PodiumCap", gateOrStair)
-
-	-- Gradins : 7 rangées avec rebord de marbre.
-	local TIERS, DEPTH, RISE = 7, 2.6, 1.8
-	local function tierTop(t: number): number
-		return 5 + t * RISE
-	end
-	for t = 1, TIERS do
-		local radius = 26 + (t - 0.5) * DEPTH
-		ring(radius, DEPTH, GROUND, tierTop(t), M.Sandstone, (t % 2 == 0) and stone or stoneDark, "Tier", gateOrStair)
-		ring(radius - DEPTH / 2 + 0.4, 0.8, tierTop(t), tierTop(t) + 0.3, M.Marble, marble, "SeatEdge", gateOrStair)
-	end
-
-	-- Escaliers : demi-marches de la piste jusqu'au dernier rang.
-	for _, angle in ipairs(stairs) do
+	-- Six piliers élémentaires, hors de l'estrade, avec cristal flottant.
+	local pillars = Instance.new("Folder")
+	pillars.Name = "Piliers"
+	pillars.Parent = col
+	for i, el in ipairs(ELEMENTS) do
+		local a = gate + 30 + (i - 1) * 60
+		local pos = at(a, 34, GROUND)
+		local pillar = Instance.new("Model")
+		pillar.Name = el[1]
+		pillar.Parent = pillars
+		part({ Name = "Base", Size = Vector3.new(4.4, 1.2, 4.4), CFrame = CFrame.new(pos + Vector3.new(0, 0.6, 0)), Material = M.Slate, Color = stoneDark, Parent = pillar })
+		part({ Name = "Fut", Shape = Enum.PartType.Cylinder, Size = Vector3.new(9, 2.6, 2.6), CFrame = vertical(CFrame.new(pos + Vector3.new(0, 5.7, 0))),
+			Material = M.Limestone, Color = stone, Parent = pillar })
+		-- Cannelures colorées.
 		for k = 0, 3 do
-			local top = 1.25 * (k + 1)
-			part({ Name = "StairStep", Size = Vector3.new(6.4, top, 1), CFrame = polar(angle, 21.5 + k, top / 2), Material = M.Limestone,
-				Color = marble, Parent = col })
+			decorative(part({ Name = "Veine", Size = Vector3.new(0.25, 8.2, 0.25),
+				CFrame = CFrame.new(pos + Vector3.new(0, 5.7, 0)) * CFrame.Angles(0, math.rad(k * 90 + 45), 0) * CFrame.new(0, 0, 1.25),
+				Material = M.Neon, Color = el[2], Transparency = 0.35, Parent = pillar }))
 		end
-		for t = 1, TIERS do
-			for half = 0, 1 do
-				local top = tierTop(t - 1) + RISE * (half + 1) / 2
-				local radius = 26 + (t - 1) * DEPTH + DEPTH * (half + 0.5) / 2
-				part({ Name = "StairStep", Size = Vector3.new(6.4, top, DEPTH / 2), CFrame = polar(angle, radius, top / 2), Material = M.Limestone,
-					Color = marble, Parent = col })
+		part({ Name = "Chapiteau", Size = Vector3.new(3.6, 0.9, 3.6), CFrame = CFrame.new(pos + Vector3.new(0, 10.6, 0)), Material = M.Marble,
+			Color = marble, Parent = pillar })
+		decorative(part({ Name = "Anneau", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.3, 3.9, 3.9), CFrame = vertical(CFrame.new(pos + Vector3.new(0, 11.1, 0))),
+			Material = M.Metal, Color = gold, Parent = pillar }))
+		local crystal = part({ Name = "Cristal", Size = Vector3.new(1.4, 2.6, 1.4), CFrame = CFrame.new(pos + Vector3.new(0, 13.4, 0)) * CFrame.Angles(0, math.rad(45), 0),
+			Material = M.Glass, Color = el[2], Transparency = 0.15, Parent = pillar })
+		decorative(crystal)
+		crystal:SetAttribute("Floating", true)
+		local light = Instance.new("PointLight")
+		light.Color = el[2]
+		light.Brightness = 1.5
+		light.Range = 16
+		light.Parent = crystal
+		local sparks = Instance.new("ParticleEmitter")
+		sparks.Name = "Eclat"
+		sparks.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		sparks.Color = ColorSequence.new(el[2])
+		sparks.LightEmission = 1
+		sparks.Rate = 4
+		sparks.Lifetime = NumberRange.new(1, 2)
+		sparks.Speed = NumberRange.new(0.5, 1.5)
+		sparks.SpreadAngle = Vector2.new(180, 180)
+		sparks.Size = NumberSequence.new(0.35, 0)
+		sparks.Parent = crystal
+		pillar:SetAttribute("Element", el[1])
+	end
+
+	-- Pierres runiques en lévitation (animées par le client).
+	local stones = Instance.new("Folder")
+	stones.Name = "PierresRuniques"
+	stones.Parent = col
+	for i = 0, 7 do
+		local a = i * 45 + 22.5
+		local h = 9 + (i % 3) * 2.5
+		local s = part({ Name = "Pierre", Size = Vector3.new(1.6, 2.4, 0.9), CFrame = CFrame.new(at(a, 30, GROUND + h)) * CFrame.Angles(0.3, math.rad(a), 0.2),
+			Material = M.Slate, Color = stoneDark, Parent = stones })
+		decorative(s)
+		s:SetAttribute("Floating", true)
+		s:SetAttribute("Orbit", true)
+		decorative(part({ Name = "Glyphe", Size = Vector3.new(0.7, 1.2, 0.05), CFrame = s.CFrame * CFrame.new(0, 0, -0.46), Material = M.Neon, Color = arcane,
+			Transparency = 0.2, Parent = s }))
+	end
+
+	-- Allée d'entrée depuis la porte (vers l'ouest) et braseros qui l'encadrent.
+	local gr = math.rad(gate)
+	local gdir = Vector3.new(math.cos(gr), 0, math.sin(gr))
+	for k = 0, 7 do
+		local pos = base + gdir * (31 + k * 3.2) + Vector3.new(0, 0.05, 0)
+		part({ Name = "Dalle", Size = Vector3.new(3, 0.3, 6), CFrame = CFrame.lookAt(pos, pos + gdir) * CFrame.Angles(0, math.rad(90), 0),
+			Material = M.Slate, Color = stone:Lerp(stoneDark, (k % 2) * 0.3), Parent = col })
+	end
+	for _, s in ipairs({ -1, 1 }) do
+		brazier(CFrame.new(at(gate + s * 9, 33, GROUND)), col, 0.9)
+	end
+
+	-- Bancs et bannières en retrait, bas pour ne pas gêner la vue.
+	for _, a in ipairs({ gate + 60, gate + 120, gate - 60, gate - 120, gate + 180 }) do
+		local cf = facing(a, 44, GROUND + 0.6)
+		if not ArcanaProps.placeBench(cf, col) then
+			part({ Name = "Banc", Size = Vector3.new(8, 0.6, 2), CFrame = cf, Material = M.Wood, Color = Color3.fromRGB(120, 80, 50), Parent = col })
+			for _, sx in ipairs({ -3, 3 }) do
+				part({ Name = "Pied", Size = Vector3.new(0.6, 1.2, 1.6), CFrame = cf * CFrame.new(sx, -0.6, 0), Material = M.Slate, Color = stoneDark, Parent = col })
 			end
 		end
-		-- Rampes de fer.
-		for _, side in ipairs({ -1, 1 }) do
-			local p0 = (polar(angle, 21, 0) * CFrame.new(side * 3.3, 1.8, 0)).Position
-			local p1 = (polar(angle, 44, 0) * CFrame.new(side * 3.3, tierTop(TIERS) + 1.8, 0)).Position
-			decorative(part({ Size = Vector3.new(0.25, 0.25, (p1 - p0).Magnitude), CFrame = CFrame.lookAt((p0 + p1) / 2, p1), Material = M.Metal,
-				Color = IRON, Parent = col }))
+		for _, sx in ipairs({ -6, 6 }) do
+			local poleCf = cf * CFrame.new(sx, 0, 1.5)
+			part({ Name = "Mat", Shape = Enum.PartType.Cylinder, Size = Vector3.new(7, 0.35, 0.35), CFrame = vertical(poleCf * CFrame.new(0, 3, 0)), Material = M.Wood,
+				Color = Color3.fromRGB(90, 60, 40), Parent = col })
+			decorative(part({ Name = "Banniere", Size = Vector3.new(1.6, 3, 0.1), CFrame = poleCf * CFrame.new(0, 4.4, -0.2), Material = M.Fabric,
+				Color = sx < 0 and Color3.fromRGB(120, 30, 40) or arcane:Lerp(Color3.new(0, 0, 0), 0.35), Parent = col }))
+			decorative(part({ Name = "Embleme", Size = Vector3.new(0.6, 0.6, 0.12), CFrame = poleCf * CFrame.new(0, 4.6, -0.22) * CFrame.Angles(0, 0, math.rad(45)),
+				Material = M.Metal, Color = gold, Parent = col }))
 		end
 	end
-	-- Promenoir au sommet des gradins, jusqu'à la façade.
-	ring(R - 3.9, 1.6, GROUND, tierTop(TIERS) + 0.3, M.Sandstone, stone, "Promenade", isGate)
-
-	-- Façade : arcades sur deux niveaux, colonnes engagées, attique et oriflammes.
-	local wallR = R - 1.8
-	local topY = 27
-	local LEVELS = { { 2, 11 }, { 14, 21 } }
-	for i = 0, SEG - 1 do
-		local a = (i + 0.5) * 360 / SEG
-		local pierA = i * 360 / SEG
-		local segW = 2 * math.pi * wallR / SEG + 0.3
-		local cf = polar(a, wallR, 0)
-		local pierCf = polar(pierA, wallR, 0)
-		if angleDiff(pierA, gate) > 8 then
-			part({ Name = "Pier", Size = Vector3.new(2.4, topY, 3.8), CFrame = pierCf * CFrame.new(0, topY / 2, 0), Material = M.Limestone, Color = stone, Parent = col })
-			for _, lv in ipairs(LEVELS) do
-				part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(lv[2] - lv[1], 1.3, 1.3), CFrame = vertical(pierCf * CFrame.new(0, (lv[1] + lv[2]) / 2, 2.1)),
-					Material = M.Marble, Color = marble, Parent = col })
-			end
-		end
-		if not isGate(a) then
-			local w = segW - 2.4
-			part({ Name = "Plinth", Size = Vector3.new(segW, 2, 3.6), CFrame = cf * CFrame.new(0, 1, 0), Material = M.Limestone, Color = stoneDark, Parent = col })
-			part({ Name = "Cornice", Size = Vector3.new(segW, 3, 3.8), CFrame = cf * CFrame.new(0, 12.5, 0), Material = M.Limestone, Color = stoneDark, Parent = col })
-			part({ Name = "Attic", Size = Vector3.new(segW, topY - 21, 3.6), CFrame = cf * CFrame.new(0, (21 + topY) / 2, 0), Material = M.Limestone, Color = stone, Parent = col })
-			for _, lv in ipairs(LEVELS) do
-				-- Fond sombre de la galerie et écoinçons qui arrondissent l'arc.
-				decorative(part({ Size = Vector3.new(segW, lv[2] - lv[1], 0.4), CFrame = cf * CFrame.new(0, (lv[1] + lv[2]) / 2, -1.6), Material = M.Slate,
-					Color = Color3.fromRGB(58, 52, 48), Parent = col }))
-				for _, side in ipairs({ -1, 1 }) do
-					part({ Size = Vector3.new(1.3, 1.2, 3.2), CFrame = cf * CFrame.new(side * (w / 2 - 0.65), lv[2] - 0.6, 0), Material = M.Limestone, Color = stone, Parent = col })
-					part({ Size = Vector3.new(0.6, 1, 3.2), CFrame = cf * CFrame.new(side * (w / 2 - 1.6), lv[2] - 0.5, 0), Material = M.Limestone, Color = stone, Parent = col })
-				end
-				decorative(part({ Size = Vector3.new(0.9, 1, 3.4), CFrame = cf * CFrame.new(0, lv[2] - 0.4, 0.1), Material = M.Marble, Color = marble, Parent = col }))
-			end
-			part({ Name = "Merlon", Size = Vector3.new(segW * 0.5, 1.6, 3.6), CFrame = cf * CFrame.new(0, topY + 0.8, 0), Material = M.Limestone, Color = stone, Parent = col })
-			-- Oriflammes tous les 5 segments.
-			if i % 5 == 2 then
-				part({ Size = Vector3.new(0.3, 8, 0.3), CFrame = cf * CFrame.new(0, topY + 4, 0.6), Material = M.Metal, Color = IRON, Parent = col })
-				decorative(part({ Size = Vector3.new(0.1, 2.2, 4), CFrame = cf * CFrame.new(0, topY + 6.8, 2.6), Material = M.Fabric,
-					Color = (i % 10 == 2) and red or Color3.fromRGB(40, 60, 140), Parent = col }))
-			end
-		end
-	end
-
-	-- Porte principale : pylônes, linteau gravé, herse levée, bannières et braseros.
-	local g = polar(gate, R, 0)
-	for _, side in ipairs({ -1, 1 }) do
-		part({ Name = "GatePylon", Size = Vector3.new(6, 32, 10), CFrame = g * CFrame.new(side * 8.5, 16, 1), Material = M.Limestone, Color = stone, Parent = col })
-		part({ Size = Vector3.new(6.6, 1.4, 10.6), CFrame = g * CFrame.new(side * 8.5, 32.7, 1), Material = M.Marble, Color = marble, Parent = col })
-		decorative(part({ Size = Vector3.new(3.4, 13, 0.15), CFrame = g * CFrame.new(side * 8.5, 22, 6.1), Material = M.Fabric, Color = red, Parent = col }))
-		decorative(part({ Size = Vector3.new(3.4, 0.5, 0.2), CFrame = g * CFrame.new(side * 8.5, 28.3, 6.15), Material = M.Metal, Color = gold, Parent = col }))
-		-- Brasero posé directement au sol, sans socle.
-		brazier(g * CFrame.new(side * 9, 0, 11), col, 1.5)
-	end
-	part({ Name = "GateLintel", Size = Vector3.new(11, 18, 10), CFrame = g * CFrame.new(0, 23, 1), Material = M.Limestone, Color = stoneDark, Parent = col })
-	local plaque = part({ Name = "GatePlaque", Size = Vector3.new(12, 3, 0.3), CFrame = g * CFrame.new(0, 19, 6.2), Material = M.Marble, Color = marble, Parent = col })
-	signText(plaque, "ARÈNE DES CHAMPIONS", Enum.NormalId.Back, Color3.fromRGB(120, 80, 30))
-	-- Dents de la herse levée.
-	for x = -4.5, 4.5, 1.5 do
-		decorative(part({ Size = Vector3.new(0.3, 2.4, 0.3), CFrame = g * CFrame.new(x, 12.8, 4), Material = M.Metal, Color = IRON, Parent = col }))
-	end
-	-- Voûte du passage jusqu'à la piste.
-	for _, r in ipairs({ 30, 36, 42 }) do
-		part({ Name = "Vault", Size = Vector3.new(7, 1.2, 6.2), CFrame = polar(gate, r, 13), Material = M.Limestone, Color = stoneDark, Parent = col })
-		for _, side in ipairs({ -1, 1 }) do
-			part({ Size = Vector3.new(1, 13, 6.2), CFrame = polar(gate, r, 6.5) * CFrame.new(side * 3.9, 0, 0), Material = M.Limestone, Color = stone, Parent = col })
-		end
-	end
-
-	-- Loge d'honneur, face à la porte.
-	local box = polar(gate + 180, 40, 0)
-	local floorY = tierTop(TIERS) + 1
-	part({ Name = "Loge", Size = Vector3.new(14, 1, 8), CFrame = box * CFrame.new(0, floorY, 0), Material = M.Marble, Color = marble, Parent = col })
-	decorative(part({ Size = Vector3.new(13, 0.1, 6), CFrame = box * CFrame.new(0, floorY + 0.55, 0), Material = M.Fabric, Color = red, Parent = col }))
-	for _, x in ipairs({ -6.4, 6.4 }) do
-		for _, z in ipairs({ -3.4, 3.4 }) do
-			part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(8, 0.8, 0.8), CFrame = vertical(box * CFrame.new(x, floorY + 4.5, z)), Material = M.Metal,
-				Color = gold, Parent = col })
-		end
-	end
-	for k = 0, 1 do
-		part({ ClassName = "WedgePart", Size = Vector3.new(15, 2.4, 4.6), CFrame = box * CFrame.new(0, floorY + 9.7, 0) * CFrame.Angles(0, k * math.pi, 0)
-			* CFrame.new(0, 0, -2.3), Material = M.Fabric, Color = red, Parent = col })
-	end
-	for _, x in ipairs({ -2, 2 }) do
-		part({ Size = Vector3.new(2, 1, 2), CFrame = box * CFrame.new(x, floorY + 1, 0.6), Material = M.WoodPlanks, Color = Color3.fromRGB(110, 40, 40), Parent = col })
-		part({ Size = Vector3.new(2, 3, 0.4), CFrame = box * CFrame.new(x, floorY + 2.5, 1.5), Material = M.Metal, Color = gold, Parent = col })
-	end
-	decorative(part({ Size = Vector3.new(14, 1.2, 0.3), CFrame = box * CFrame.new(0, floorY + 1.1, -4), Material = M.Metal, Color = gold, Parent = col }))
-
-	-- Braseros sur le podium.
-	for _, a in ipairs({ gate + 90, gate - 90, gate + 20, gate - 20 }) do
-		brazier(polar(a, 25.2, 5.5), col, 0.8)
-	end
-
-	-- Construit à l'échelle d'origine (rayon 48), puis réduit à la taille du plan.
-	col.WorldPivot = CFrame.new(base)
-	col:ScaleTo(L.ColosseumRadius / R)
 end
 
 ---------------------------------------------------------------------------

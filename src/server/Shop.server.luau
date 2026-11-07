@@ -88,9 +88,12 @@ MarketplaceService.ProcessReceipt = function(receipt)
 		table.remove(receipts, 1)
 	end
 
-	-- Sauvegarde immédiate : un achat ne doit jamais être perdu.
-	DataService.Save(player)
+	-- Sauvegarde immédiate : un achat ne doit jamais être perdu. Si elle échoue,
+	-- Roblox renverra le reçu plus tard ; il est déjà noté, rien ne sera redonné.
 	DataService.MarkChanged(player)
+	if not DataService.SaveNow(player) then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
 	PurchaseGranted:FireClient(player, { Kind = "Product", Name = product.Name, Gems = gems, Results = results })
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end

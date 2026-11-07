@@ -171,7 +171,100 @@ VillageData.Npcs = {
 		Greeting = "Bienvenue dans l'Arène des Champions ! Ici, les dresseurs se mesurent les uns aux autres. Choisis ton adversaire et que le meilleur gagne !",
 		Lines = { "Qui ose relever le défi ?", "L'arène a soif de gloire !", "Approche, champion !" },
 	},
+	-- PNJ des quartiers.
+	Rhea = {
+		Name = "Capitaine Rhéa",
+		Role = "Instructrice de la caserne",
+		Skin = Color3.fromRGB(210, 165, 130),
+		Shirt = Color3.fromRGB(60, 70, 120),
+		Sleeves = Color3.fromRGB(60, 70, 120),
+		Pants = Color3.fromRGB(45, 45, 55),
+		Outfit = "Guard",
+		Greeting = "Garde-à-vous, dresseur ! Chaque jour, je récompense ceux qui remportent un entraînement au Cercle des Arcanes.",
+		Lines = { "Un, deux ! Un, deux !", "La discipline forge les champions.", "Prêt pour le défi du jour ?" },
+	},
+	Oswin = {
+		Name = "Oswin",
+		Role = "Marchand de cartes",
+		Skin = Color3.fromRGB(225, 180, 140),
+		Shirt = Color3.fromRGB(110, 70, 30),
+		Sleeves = Color3.fromRGB(235, 220, 190),
+		Pants = Color3.fromRGB(60, 45, 35),
+		Outfit = "Merchant",
+		Greeting = "Ah, un connaisseur ! Mon étal change chaque jour : des créatures choisies, au prix juste... ou presque.",
+		Lines = { "Cartes rares, cartes fraîches !", "L'étal du jour vaut le détour !", "Je n'en ai qu'une de chaque !" },
+	},
+	Maelis = {
+		Name = "Maelis",
+		Role = "Archiviste du donjon",
+		Skin = Color3.fromRGB(235, 205, 180),
+		Shirt = Color3.fromRGB(90, 40, 110),
+		Sleeves = Color3.fromRGB(90, 40, 110),
+		Pants = Color3.fromRGB(50, 25, 65),
+		Outfit = "Sage",
+		Greeting = "Les archives du donjon recensent chaque bête arcanique. Réunis toutes les créatures d'un élément, et le royaume saura te remercier.",
+		Lines = { "Chut, on archive...", "Il me manque encore des pages.", "Chaque élément a son histoire." },
+	},
+	Gaelle = {
+		Name = "Gaëlle",
+		Role = "Fermière",
+		Skin = Color3.fromRGB(200, 150, 110),
+		Shirt = Color3.fromRGB(110, 140, 70),
+		Sleeves = Color3.fromRGB(240, 230, 210),
+		Pants = Color3.fromRGB(90, 70, 50),
+		Outfit = "Farmer",
+		Greeting = "Bonjour bonjour ! La récolte a été bonne, j'ai préparé un panier pour chaque visiteur. Reviens demain, il y en aura un autre !",
+		Lines = { "Les moutons sont sages aujourd'hui.", "Un panier pour toi ?", "Le moulin tourne, la vie est belle !" },
+	},
+	Odile = {
+		Name = "Grand-mère Odile",
+		Role = "Conteuse du quartier",
+		Skin = Color3.fromRGB(235, 200, 175),
+		Shirt = Color3.fromRGB(150, 110, 160),
+		Sleeves = Color3.fromRGB(150, 110, 160),
+		Pants = Color3.fromRGB(150, 110, 160),
+		Outfit = "Lady",
+		Greeting = "Viens t'asseoir, petit. À mon âge, on en a vu, des bêtes arcaniques... Veux-tu un conseil ou une histoire ?",
+		Lines = { "Viens écouter une histoire...", "De mon temps, les Anima étaient sauvages !", "Ah, la jeunesse..." },
+	},
 }
+
+-- Étal du jour d'Oswin : prix par rareté.
+VillageData.StallPrices = { Commun = 70, PeuCommun = 150, Rare = 380, Epique = 950, Legendaire = 2400 }
+-- Défi quotidien de Rhéa, panier de Gaëlle, collections de Maelis.
+VillageData.DailyDuelReward = 150
+VillageData.FarmBasket = { Min = 40, Max = 90 }
+VillageData.ElementSetReward = 450
+
+-- Les 3 créatures de l'étal du jour (identiques pour tous, changent chaque jour).
+function VillageData.stallFor(day: number): { string }
+	local rng = Random.new(day * 7919 + 17)
+	local tiers = { { "Commun", "PeuCommun" }, { "PeuCommun", "Rare" }, { "Rare", "Epique" } }
+	local CardsData = require(script.Parent:WaitForChild("CardsData"))
+	local picked = {}
+	for _, tier in ipairs(tiers) do
+		local pool = {}
+		for _, c in ipairs(CardsData.Cards) do
+			if table.find(tier, c.Rarity) and not table.find(picked, c.Id) then
+				table.insert(pool, c.Id)
+			end
+		end
+		if #pool > 0 then
+			table.insert(picked, pool[rng:NextInteger(1, #pool)])
+		end
+	end
+	-- Un jour sur sept, une Légendaire remplace la troisième carte.
+	if day % 7 == 3 then
+		local legends = {}
+		for _, c in ipairs(CardsData.Cards) do
+			if c.Rarity == "Legendaire" then
+				table.insert(legends, c.Id)
+			end
+		end
+		picked[3] = legends[rng:NextInteger(1, #legends)]
+	end
+	return picked
+end
 
 for id, npc in pairs(VillageData.Npcs) do
 	npc.Id = id

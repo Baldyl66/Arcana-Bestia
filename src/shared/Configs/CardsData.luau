@@ -121,9 +121,112 @@ CardsData.Cards = {
 		Description = "La gardienne millénaire des forêts, sur son dos pousse un bois entier." },
 }
 
+-------------------------------------------------------------------------------
+-- Combat : énergie, statuts et capacité unique de chaque créature.
+-------------------------------------------------------------------------------
+CardsData.Combat = {
+	EnergyMax = 5,
+	EnergyStart = 1,
+	EnergyAttack = 1, -- gagnée en attaquant
+	EnergyDefend = 2, -- gagnée en gardant
+	GuardHeal = 0.05, -- soin de la garde (part des PV max)
+	BurnDamage = 0.08, -- par tour, part des PV max
+	PoisonDamage = 0.07,
+	WeakFactor = 0.7, -- attaque affaiblie
+	RageFactor = 1.4, -- attaque enragée
+	ReflectFactor = 0.5, -- part des dégâts renvoyés par le miroir
+	ExecuteThreshold = 0.4, -- sous 40 % de PV, l'exécution double les dégâts
+}
+
+-- Libellés et icônes des statuts (affichés sous la barre de vie).
+CardsData.Statuses = {
+	Burn = { Label = "Brûlure", Icon = "🔥", Color = Color3.fromRGB(255, 130, 60) },
+	Poison = { Label = "Poison", Icon = "☠", Color = Color3.fromRGB(150, 220, 90) },
+	Stun = { Label = "Étourdi", Icon = "⚡", Color = Color3.fromRGB(255, 225, 80) },
+	Freeze = { Label = "Gelé", Icon = "❄", Color = Color3.fromRGB(150, 220, 255) },
+	Weak = { Label = "Affaibli", Icon = "▼", Color = Color3.fromRGB(190, 140, 255) },
+	Rage = { Label = "Rage", Icon = "▲", Color = Color3.fromRGB(255, 90, 90) },
+	Shield = { Label = "Bouclier", Icon = "◈", Color = Color3.fromRGB(120, 200, 255) },
+	Reflect = { Label = "Miroir", Icon = "◇", Color = Color3.fromRGB(200, 240, 255) },
+}
+
+--[[ Capacité de chaque créature. Champs (tous facultatifs sauf Name/Cost) :
+	Power   : multiplicateur de dégâts (absent = pas d'attaque)
+	Hits    : nombre de coups (Power par coup)
+	Pierce  : ignore la garde, le bouclier et le miroir
+	Execute : dégâts doublés si la cible est sous le seuil d'exécution
+	Drain   : part des dégâts rendue en PV
+	Burn / Poison / Stun / Freeze / Weak : tours infligés à la cible
+	Rage    : tours d'attaque augmentée pour soi
+	Shield  : bouclier pour soi (part des PV max)
+	Heal    : soin pour soi (part des PV max)
+	Cleanse : retire brûlure, poison et affaiblissement de soi
+	Reflect : garde + miroir pour soi ]]
+local ABILITIES = {
+	-- Communs
+	flamichat = { Name = "Griffe ardente", Cost = 2, Power = 1.0, Burn = 2 },
+	gouttelin = { Name = "Bulle protectrice", Cost = 2, Shield = 0.3 },
+	mousseron = { Name = "Nuage de spores", Cost = 2, Power = 0.6, Poison = 3 },
+	etincelot = { Name = "Décharge", Cost = 3, Power = 0.8, Stun = 1 },
+	lucioline = { Name = "Lueur apaisante", Cost = 2, Heal = 0.3, Cleanse = true },
+	ombrelin = { Name = "Mimétisme", Cost = 2, Power = 0.8, Weak = 2 },
+	braisille = { Name = "Étincelle", Cost = 2, Power = 0.9, Burn = 2 },
+	galetor = { Name = "Carapace roulée", Cost = 2, Shield = 0.35 },
+	-- Peu communs
+	aquatortue = { Name = "Carapace miroir", Cost = 2, Reflect = true },
+	ronceloup = { Name = "Double morsure", Cost = 2, Power = 0.75, Hits = 2 },
+	cendrebouc = { Name = "Charge incandescente", Cost = 3, Power = 1.3, Burn = 2 },
+	marelame = { Name = "Lame des marées", Cost = 3, Power = 1.4, Pierce = true },
+	orageon = { Name = "Laine statique", Cost = 3, Power = 0.7, Stun = 1 },
+	aurelion = { Name = "Rugissement d'aube", Cost = 2, Power = 0.8, Rage = 2 },
+	spectrombre = { Name = "Traversée spectrale", Cost = 2, Power = 1.1, Drain = 0.5 },
+	-- Rares
+	pyrogriff = { Name = "Ailes embrasées", Cost = 3, Power = 1.5, Burn = 3 },
+	voltigeai = { Name = "Cascade d'éclairs", Cost = 3, Power = 0.6, Hits = 3 },
+	abyssalor = { Name = "Étreinte abyssale", Cost = 3, Power = 1.3, Drain = 0.6 },
+	florhydre = { Name = "Repousse", Cost = 3, Heal = 0.45, Cleanse = true },
+	seraphel = { Name = "Bénédiction", Cost = 3, Shield = 0.35, Cleanse = true },
+	nocturbe = { Name = "Vol nocturne", Cost = 3, Power = 1.2, Execute = true },
+	-- Épiques
+	umbrelune = { Name = "Éclipse", Cost = 3, Power = 1.4, Weak = 2 },
+	sylvaroc = { Name = "Racines millénaires", Cost = 3, Shield = 0.45, Heal = 0.1 },
+	tonnerrhin = { Name = "Piétinement orageux", Cost = 4, Power = 1.3, Stun = 1 },
+	magmorex = { Name = "Éruption", Cost = 4, Power = 1.8, Burn = 3 },
+	glacimar = { Name = "Chant glacial", Cost = 4, Power = 1.2, Freeze = 1 },
+	-- Légendaires
+	solaryx = { Name = "Supernova", Cost = 4, Power = 2.2, Pierce = true },
+	nyxaria = { Name = "Nuit éternelle", Cost = 4, Power = 1.6, Drain = 0.5, Weak = 2 },
+	fulguron = { Name = "Jugement de foudre", Cost = 4, Power = 0.75, Hits = 3 },
+	gaiandre = { Name = "Floraison sacrée", Cost = 4, Heal = 0.4, Shield = 0.25, Cleanse = true },
+}
+
+-- Texte court décrivant une capacité (bouton, collection).
+function CardsData.abilityText(ability): string
+	local parts = {}
+	if ability.Power then
+		local hits = ability.Hits or 1
+		table.insert(parts, string.format("%s%d%% ATQ", hits > 1 and (hits .. "×") or "", math.floor(ability.Power * 100 + 0.5)))
+	end
+	if ability.Pierce then table.insert(parts, "perce la garde") end
+	if ability.Execute then table.insert(parts, "×2 si PV < 40%") end
+	if ability.Drain then table.insert(parts, string.format("vol %d%%", ability.Drain * 100)) end
+	if ability.Burn then table.insert(parts, "brûlure " .. ability.Burn .. "t") end
+	if ability.Poison then table.insert(parts, "poison " .. ability.Poison .. "t") end
+	if ability.Stun then table.insert(parts, "étourdit") end
+	if ability.Freeze then table.insert(parts, "gèle") end
+	if ability.Weak then table.insert(parts, "affaiblit " .. ability.Weak .. "t") end
+	if ability.Rage then table.insert(parts, "rage " .. ability.Rage .. "t") end
+	if ability.Shield then table.insert(parts, string.format("bouclier %d%%", ability.Shield * 100)) end
+	if ability.Heal then table.insert(parts, string.format("soin %d%%", ability.Heal * 100)) end
+	if ability.Cleanse then table.insert(parts, "purifie") end
+	if ability.Reflect then table.insert(parts, "garde + renvoie ½") end
+	return table.concat(parts, " · ")
+end
+
 CardsData.CardById = {}
 for _, card in ipairs(CardsData.Cards) do
 	CardsData.CardById[card.Id] = card
+	card.Ability = ABILITIES[card.Id] or { Name = "Coup puissant", Cost = 3, Power = 1.6 }
 end
 
 return CardsData

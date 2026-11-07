@@ -217,6 +217,11 @@ local function computeScale(): number
 	local camera = workspace.CurrentCamera
 	local viewport = camera and camera.ViewportSize or Vector2.new(1366, 768)
 	local base = math.min(viewport.X / 1366, viewport.Y / 768)
+	-- Écran bas (téléphone en paysage) : on privilégie la hauteur, sinon tout
+	-- devient minuscule.
+	if viewport.Y < 500 then
+		base = math.min(viewport.X / 1200, viewport.Y / 650)
+	end
 	-- Sur console, l'écran est loin : on grossit un peu.
 	if GuiService:IsTenFootInterface() then
 		base *= 1.15
@@ -520,15 +525,31 @@ function UIKit.panel(parent: Instance, title: string): Panel
 		Name = "Window",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromScale(0.88, 0.82),
+		Size = UDim2.fromOffset(1100, 720),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		Parent = root,
 	})
-	UIKit.new("UISizeConstraint", { MaxSize = Vector2.new(1100, 720), Parent = window })
 	UIKit.corner(window, 10)
 	UIKit.gradient(window, Color3.fromRGB(52, 32, 82), Color3.fromRGB(16, 10, 30), 90)
 	UIKit.stroke(window, Color3.fromRGB(225, 180, 95), 3, 0)
 	local windowScale = UIKit.new("UIScale", { Parent = window })
+	-- Mise en page adaptative : la fenêtre garde une taille « virtuelle » d'au
+	-- moins 900 × 560 (le contenu est pensé pour ça) et elle est réduite pour
+	-- tenir à l'écran. Sur téléphone, tout reste lisible et proportionné.
+	local fit = 1
+	local function layout()
+		local camera = workspace.CurrentCamera
+		local v = camera and camera.ViewportSize or Vector2.new(1366, 768)
+		if v.X < 2 or v.Y < 2 then
+			return
+		end
+		fit = math.clamp(math.min(v.X * 0.94 / 900, v.Y * 0.92 / 560), 0.45, 1)
+		window.Size = UDim2.fromOffset(math.min(1100, v.X * 0.94 / fit), math.min(720, v.Y * 0.92 / fit))
+		windowScale.Scale = fit
+	end
+	if workspace.CurrentCamera then
+		workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(layout)
+	end
 	-- Liseré intérieur doré.
 	local inset = UIKit.new("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(8, 8), Size = UDim2.new(1, -16, 1, -16), Parent = window })
 	UIKit.corner(inset, 6)
@@ -606,6 +627,7 @@ function UIKit.panel(parent: Instance, title: string): Panel
 		Content = content,
 		IsOpen = false,
 	} :: any
+	layout()
 
 	panel.CloseButton = UIKit.button({
 		Text = "X",
@@ -626,9 +648,10 @@ function UIKit.panel(parent: Instance, title: string): Panel
 		end
 		self.IsOpen = true
 		root.Visible = true
-		windowScale.Scale = 0.85
+		layout()
+		windowScale.Scale = fit * 0.85
 		UIKit.tween(root, 0.2, { BackgroundTransparency = 0.45 })
-		UIKit.tween(windowScale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
+		UIKit.tween(windowScale, 0.3, { Scale = fit }, Enum.EasingStyle.Back)
 		UIKit.focus(self.CloseButton)
 	end
 
@@ -638,7 +661,7 @@ function UIKit.panel(parent: Instance, title: string): Panel
 		end
 		self.IsOpen = false
 		UIKit.tween(root, 0.15, { BackgroundTransparency = 1 })
-		local tween = UIKit.tween(windowScale, 0.15, { Scale = 0.85 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		local tween = UIKit.tween(windowScale, 0.15, { Scale = fit * 0.85 }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 		tween.Completed:Once(function()
 			if not self.IsOpen then
 				root.Visible = false

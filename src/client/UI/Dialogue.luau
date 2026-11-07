@@ -281,10 +281,13 @@ function Dialogue:SetPortrait(npc)
 	local head = clone:FindFirstChild("Head") :: BasePart?
 	if head then
 		self.FallbackIcon.Text = ""
-		local focus = head.Position - Vector3.new(0, 0.35, 0)
+		-- Caméra calée sur le repère de la tête (l'avant d'une tête Roblox est -Z) :
+		-- le visage est toujours de face, quelle que soit l'orientation du PNJ.
+		local headCf = head.CFrame
+		local focus = headCf.Position - headCf.UpVector * 0.35
 		local camera = Instance.new("Camera")
 		camera.FieldOfView = 32
-		camera.CFrame = CFrame.lookAt(focus + Vector3.new(1.2, 0.4, -5.5), focus)
+		camera.CFrame = CFrame.lookAt((headCf * CFrame.new(0.6, 0.3, -5.5)).Position, focus, headCf.UpVector)
 		camera.Parent = viewport
 		viewport.CurrentCamera = camera
 	end

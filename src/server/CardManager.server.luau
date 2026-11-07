@@ -3,6 +3,7 @@ local Players = game:GetService("Players")
 
 local CardsData = require(ReplicatedStorage:WaitForChild("Configs"):WaitForChild("CardsData"))
 local DataService = require(script.Parent:WaitForChild("DataService"))
+local RateLimit = require(script.Parent:WaitForChild("RateLimit"))
 
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local OpenBooster: RemoteFunction = Remotes:WaitForChild("OpenBooster")
@@ -17,11 +18,17 @@ local CardService = require(script.Parent:WaitForChild("CardService"))
 local lastOpenAt: { [Player]: number } = {}
 
 GetProfile.OnServerInvoke = function(player)
+	if not RateLimit.allow(player, "GetProfile", 2, 6) then
+		return nil
+	end
 	DataService.WaitFor(player)
 	return DataService.Snapshot(player)
 end
 
 OpenBooster.OnServerInvoke = function(player)
+	if not RateLimit.allow(player, "OpenBooster", 2, 4) then
+		return { ok = false, reason = "Doucement !" }
+	end
 	local profile = DataService.Get(player)
 	if profile == nil then
 		return { ok = false, reason = "Profil en cours de chargement..." }
@@ -49,10 +56,14 @@ OpenBooster.OnServerInvoke = function(player)
 	if #results == 0 then
 		return { ok = false, reason = "Erreur de tirage." }
 	end
+	DataService.MarkChanged(player)
 	return { ok = true, results = results, profile = DataService.Snapshot(player) }
 end
 
 ClaimDaily.OnServerInvoke = function(player)
+	if not RateLimit.allow(player, "ClaimDaily", 0.5, 2) then
+		return { ok = false, reason = "Doucement !" }
+	end
 	local profile = DataService.Get(player)
 	if profile == nil then
 		return { ok = false, reason = "Profil en cours de chargement..." }
@@ -98,6 +109,7 @@ ClaimDaily.OnServerInvoke = function(player)
 		end
 	end
 
+	DataService.MarkChanged(player)
 	return {
 		ok = true,
 		day = day,

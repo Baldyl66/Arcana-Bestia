@@ -2275,11 +2275,56 @@ local npcSpots = {
 	Varek = (function()
 		local c = L.Colosseum
 		local gate = math.rad(L.ColosseumGate)
-		local dir = Vector3.new(math.cos(gate), 0, math.sin(gate))
-		local pos = Vector3.new(c.X, L.Ground + 0.5, c.Y) + dir * 16
-		return CFrame.lookAt(pos, pos + dir)
+		-- Au bord du Cercle des Arcanes, à côté de l'allée d'entrée.
+		local a = gate + math.rad(16)
+		local pos = Vector3.new(c.X, L.Ground + 0.5, c.Y) + Vector3.new(math.cos(a), 0, math.sin(a)) * 36
+		local outward = Vector3.new(math.cos(gate), 0, math.sin(gate))
+		return CFrame.lookAt(pos, pos + outward)
 	end)(),
 }
+
+-- Quartiers : un PNJ et son étal (comptoir, auvent rayé, enseigne, lanterne).
+local stallsFolder = model("Stalls", World)
+local function stall(cf: CFrame, color: Color3, title: string)
+	local m = model("Stall_" .. title, stallsFolder)
+	local wood = Color3.fromRGB(120, 82, 50)
+	local woodLight = Color3.fromRGB(165, 120, 75)
+	part({ Name = "Comptoir", Size = Vector3.new(6, 3, 1.6), CFrame = cf * CFrame.new(0, 1.5, -2.6), Material = M.WoodPlanks, Color = wood, Parent = m })
+	part({ Name = "Plateau", Size = Vector3.new(6.6, 0.3, 2.1), CFrame = cf * CFrame.new(0, 3.1, -2.6), Material = M.Wood, Color = woodLight, Parent = m })
+	for _, x in ipairs({ -3.2, 3.2 }) do
+		for _, z in ipairs({ -3.3, 1.4 }) do
+			deco(part({ Name = "Poteau", Size = Vector3.new(0.4, 8.4, 0.4), CFrame = cf * CFrame.new(x, 4.2, z), Material = M.Wood, Color = wood, Parent = m }))
+		end
+	end
+	-- Auvent rayé (couleur du quartier / crème), légèrement incliné vers l'avant.
+	for i = 0, 5 do
+		deco(part({ Name = "Toile", Size = Vector3.new(1.2, 0.25, 5.6), CFrame = cf * CFrame.new(-3 + i * 1.2 + 0.6, 8.6, -1) * CFrame.Angles(math.rad(-10), 0, 0),
+			Material = M.Fabric, Color = i % 2 == 0 and color or Color3.fromRGB(240, 230, 210), Parent = m }))
+	end
+	local board = deco(part({ Name = "Enseigne", Size = Vector3.new(5.4, 1.3, 0.25), CFrame = cf * CFrame.new(0, 7.4, -3.75), Material = M.Wood,
+		Color = Color3.fromRGB(70, 45, 28), Parent = m }))
+	textSign(board, title, Color3.fromRGB(255, 215, 130), Enum.Font.Fantasy, { Enum.NormalId.Front })
+	-- L'enseigne regarde vers l'avant (-Z du repère) : on la retourne vers les passants.
+	board.CFrame = board.CFrame * CFrame.Angles(0, math.pi, 0)
+	local lantern = deco(part({ Name = "Lanterne", Size = Vector3.new(0.6, 0.8, 0.6), CFrame = cf * CFrame.new(2.6, 6.6, -3.3), Material = M.Neon,
+		Color = Color3.fromRGB(255, 200, 120), Parent = m }))
+	light(lantern, Color3.fromRGB(255, 190, 120), 1.6, 16)
+end
+
+local DISTRICT_NPCS = {
+	-- id, x, z, regard (vers la rue), couleur de l'auvent, enseigne
+	-- En bord de rue, tournés vers elle (les villageois y passent).
+	{ "Rhea", 268, -212, NORTH, Color3.fromRGB(60, 70, 120), "Caserne" },
+	{ "Oswin", 175, 212, SOUTH, Color3.fromRGB(160, 90, 30), "Étal d'Oswin" },
+	{ "Maelis", 34, -188, SOUTH, Color3.fromRGB(90, 40, 110), "Archives" },
+	{ "Gaelle", -175, -212, NORTH, Color3.fromRGB(110, 140, 70), "Ferme" },
+	{ "Odile", -232, 181, SOUTH, Color3.fromRGB(150, 110, 160), "Contes" },
+}
+for _, d in ipairs(DISTRICT_NPCS) do
+	local cf = at(d[2], d[3], d[4])
+	npcSpots[d[1]] = cf
+	stall(cf, d[5], d[6])
+end
 
 for id, spot in pairs(npcSpots) do
 	local look = VillageData.Npcs[id]
@@ -2555,6 +2600,123 @@ function actions.Talk(player, profile, npcId)
 	return { ok = true, info = info }
 end
 
+---------------------------------------------------------------------------
+-- PNJ des quartiers
+---------------------------------------------------------------------------
+local function today(): number
+	return DataService.Today()
+end
+
+-- Oswin : étal du jour (3 créatures, une seule fois chacune par jour).
+function actions.StallList(player, profile)
+	if not nearNpc(player, "Oswin") then
+		return { ok = false, reason = "Approche-toi de l'étal d'Oswin." }
+	end
+	local day = today()
+	if profile.StallDay ~= day then
+		profile.StallDay = day
+		profile.StallBought = {}
+	end
+	local items = {}
+	for _, id in ipairs(VillageData.stallFor(day)) do
+		local card = CardsData.CardById[id]
+		table.insert(items, { Id = id, Price = VillageData.StallPrices[card.Rarity], Sold = profile.StallBought[id] == true })
+	end
+	return { ok = true, items = items }
+end
+
+function actions.StallBuy(player, profile, id)
+	if not nearNpc(player, "Oswin") then
+		return { ok = false, reason = "Approche-toi de l'étal d'Oswin." }
+	end
+	local day = today()
+	if profile.StallDay ~= day then
+		profile.StallDay = day
+		profile.StallBought = {}
+	end
+	if type(id) ~= "string" or not table.find(VillageData.stallFor(day), id) then
+		return { ok = false, reason = "Cette créature n'est pas à l'étal aujourd'hui." }
+	end
+	if profile.StallBought[id] then
+		return { ok = false, reason = "Déjà vendue ! Reviens demain pour un nouvel étal." }
+	end
+	local card = CardsData.CardById[id]
+	local price = VillageData.StallPrices[card.Rarity]
+	if profile.Coins < price then
+		return { ok = false, reason = "Il te manque des gemmes, l'ami." }
+	end
+	profile.Coins -= price
+	profile.StallBought[id] = true
+	return { ok = true, results = { CardService.grant(profile, card) } }
+end
+
+-- Rhéa : défi quotidien (gagner un entraînement) ; lance aussi l'entraînement.
+function actions.RheaInfo(player, profile)
+	return { ok = true, done = profile.DailyDuelDay >= today(), reward = VillageData.DailyDuelReward }
+end
+
+-- Gaëlle : panier du jour.
+function actions.FarmBasket(player, profile)
+	if not nearNpc(player, "Gaelle") then
+		return { ok = false, reason = "Approche-toi de Gaëlle, à la ferme." }
+	end
+	if profile.FarmDay >= today() then
+		return { ok = false, reason = "Tu as déjà eu ton panier aujourd'hui ! Reviens demain." }
+	end
+	profile.FarmDay = today()
+	local gems = math.random(VillageData.FarmBasket.Min, VillageData.FarmBasket.Max)
+	profile.Coins += gems
+	return { ok = true, gems = gems }
+end
+
+-- Maelis : collections élémentaires (toutes les créatures d'un élément).
+local function setStates(profile)
+	local states = {}
+	for element, el in pairs(CardsData.Elements) do
+		local total, owned = 0, 0
+		for _, c in ipairs(CardsData.Cards) do
+			if c.Element == element then
+				total += 1
+				if (profile.Cards[c.Id] or 0) > 0 then
+					owned += 1
+				end
+			end
+		end
+		table.insert(states, { Element = element, Label = el.Label, Owned = owned, Total = total, Claimed = profile.SetsClaimed[element] == true })
+	end
+	table.sort(states, function(a, b)
+		return a.Label < b.Label
+	end)
+	return states
+end
+
+function actions.SetsInfo(player, profile)
+	return { ok = true, sets = setStates(profile), reward = VillageData.ElementSetReward }
+end
+
+function actions.ClaimSet(player, profile, element)
+	if not nearNpc(player, "Maelis") then
+		return { ok = false, reason = "Approche-toi de Maelis, aux archives du donjon." }
+	end
+	if type(element) ~= "string" or not CardsData.Elements[element] then
+		return { ok = false }
+	end
+	for _, s in ipairs(setStates(profile)) do
+		if s.Element == element then
+			if s.Claimed then
+				return { ok = false, reason = "Cette collection est déjà récompensée." }
+			end
+			if s.Owned < s.Total then
+				return { ok = false, reason = string.format("Il te manque encore %d créature(s) %s.", s.Total - s.Owned, s.Label) }
+			end
+			profile.SetsClaimed[element] = true
+			profile.Coins += VillageData.ElementSetReward
+			return { ok = true, gems = VillageData.ElementSetReward }
+		end
+	end
+	return { ok = false }
+end
+
 function actions.BuyBundle(player, profile)
 	if not nearNpc(player, "Elya") then
 		return { ok = false, reason = "Approche-toi de la boutique d'Elya." }
@@ -2672,11 +2834,77 @@ local DUEL_INVITE_TIME = 20
 local DUEL_REWARD_WIN, DUEL_REWARD_LOSE, DUEL_REWARD_DRAW = 150, 30, 60
 local duelInvites: { [Player]: { From: Player, Expires: number } } = {}
 local inDuel: { [Player]: Player } = {}
+-- Joueurs en entraînement contre le mannequin de Varek.
+local training: { [Player]: boolean } = {}
 
 local function colosseumCenter(): Vector3
 	local c = L.Colosseum
 	return Vector3.new(c.X, L.Ground + 0.5, c.Y)
 end
+
+-- Spectateurs : les joueurs proches du Cercle des Arcanes (et hors duel)
+-- voient le combat en 3D. Les retardataires reçoivent l'état en cours.
+local SPECTATE_RANGE = 110
+local spectated = nil -- { Start = données, Latest = dernier état, Viewers = { [Player] = true } }
+
+local function nearCircle(p: Player): boolean
+	local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+	return root ~= nil and (root.Position - colosseumCenter()).Magnitude < SPECTATE_RANGE
+end
+
+local function spectateHook(a: Player)
+	local view = { Viewers = {} }
+	spectated = view
+	return function(kind: string, data)
+		if spectated ~= view then
+			return
+		end
+		if kind == "Start" then
+			view.Start = data
+			view.Latest = data
+		elseif kind == "Resolve" then
+			view.Latest = data
+		end
+		for _, p in ipairs(Players:GetPlayers()) do
+			local watching = view.Viewers[p]
+			if not inDuel[p] and not training[p] and p ~= a and nearCircle(p) then
+				if kind == "Start" or (kind == "Resolve" and watching) then
+					view.Viewers[p] = true
+					DuelEvent:FireClient(p, "Spec" .. kind, data)
+				end
+			end
+			if kind == "End" and watching then
+				DuelEvent:FireClient(p, "SpecEnd", data)
+			end
+		end
+		if kind == "End" then
+			spectated = nil
+		end
+	end
+end
+
+task.spawn(function()
+	while true do
+		task.wait(1)
+		local view = spectated
+		if view and view.Start then
+			for _, p in ipairs(Players:GetPlayers()) do
+				local near = nearCircle(p) and not inDuel[p] and not training[p]
+				if near and not view.Viewers[p] then
+					-- Arrivée en cours de duel : état actuel des deux équipes.
+					local data = table.clone(view.Latest)
+					data.MeInfo, data.OppInfo = view.Start.MeInfo, view.Start.OppInfo
+					data.Events = nil
+					view.Viewers[p] = true
+					DuelEvent:FireClient(p, "SpecStart", data)
+				elseif not near and view.Viewers[p] then
+					view.Viewers[p] = nil
+					DuelEvent:FireClient(p, "SpecEnd", {})
+				end
+			end
+		end
+	end
+end)
 
 local function endDuel(a: Player, reason: string)
 	local b = inDuel[a]
@@ -2727,7 +2955,7 @@ local function startDuel(a: Player, b: Player)
 				endDuel(a, reason)
 			end
 		end)
-	end)
+	end, spectateHook(a))
 end
 
 -- Un duelliste qui quitte l'arène abandonne le duel.
@@ -2811,10 +3039,9 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 -- Mode entraînement : combat contre un bot, sans récompense.
-local training: { [Player]: boolean } = {}
 function actions.TrainingStart(player, profile)
-	if not nearNpc(player, "Varek") then
-		return { ok = false, reason = "Approche-toi de Varek, dans l'Arène des Champions." }
+	if not (nearNpc(player, "Varek") or nearNpc(player, "Rhea")) then
+		return { ok = false, reason = "Approche-toi de Varek, au Cercle des Arcanes." }
 	end
 	if inDuel[player] or training[player] or DuelCombat.isFighting(player) then
 		return { ok = false, reason = "Tu es déjà en combat !" }
@@ -2834,7 +3061,15 @@ function actions.TrainingStart(player, profile)
 	local bot = DuelCombat.newBot("Mannequin de Varek")
 	DuelCombat.start(player, bot, profile, nil, function(target, kind, data)
 		DuelEvent:FireClient(target, kind, data)
-	end, function(_winner, _loser, reason)
+	end, function(winner, _loser, reason)
+		-- Défi quotidien de Rhéa : la première victoire du jour rapporte des gemmes.
+		local p = DataService.Get(player)
+		if winner == player and p and p.DailyDuelDay < DataService.Today() then
+			p.DailyDuelDay = DataService.Today()
+			p.Coins += VillageData.DailyDuelReward
+			DataService.MarkChanged(player)
+			Notify:FireClient(player, string.format("Défi du jour réussi : +%d ◆ !", VillageData.DailyDuelReward), "Gold")
+		end
 		task.delay(5, function()
 			training[player] = nil
 			if player.Parent then
@@ -2842,7 +3077,7 @@ function actions.TrainingStart(player, profile)
 				DuelEvent:FireClient(player, "End", {})
 			end
 		end)
-	end)
+	end, spectateHook(player))
 	return { ok = true }
 end
 
@@ -2895,17 +3130,23 @@ function actions.TutorialDone(_player, profile)
 end
 
 local lastAction: { [Player]: number } = {}
+local RateLimit = require(script.Parent:WaitForChild("RateLimit"))
+local ECONOMY_ACTIONS = { BuyBundle = true, BuyElement = true, SellDuplicates = true, Fuse = true, ClaimQuest = true, BuyMystic = true,
+	StallBuy = true, FarmBasket = true, ClaimSet = true }
 NpcAction.OnServerInvoke = function(player, action, arg)
 	local handler = type(action) == "string" and actions[action]
 	local profile = DataService.Get(player)
-	if not handler or not profile then
+	if not handler or not profile or not RateLimit.safeArg(arg) then
 		return { ok = false, reason = "Action impossible." }
 	end
-	local now = os.clock()
-	if now - (lastAction[player] or 0) < 0.4 then
+	-- Débit global, plus serré pour les actions qui touchent à l'économie.
+	if not RateLimit.allow(player, "NpcAction", 4, 8) then
 		return { ok = false, reason = "Doucement !" }
 	end
-	lastAction[player] = now
+	if ECONOMY_ACTIONS[action] and not RateLimit.allow(player, "Eco", 1, 3) then
+		return { ok = false, reason = "Doucement !" }
+	end
+	lastAction[player] = os.clock()
 	local ok, result = pcall(handler, player, profile, arg)
 	if not ok then
 		warn("[Village] Action " .. tostring(action) .. " :", result)

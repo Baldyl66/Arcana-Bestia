@@ -216,7 +216,7 @@ local function varek(ctx: Context, npc)
 				end
 			end },
 			{ Text = "Comment se déroule un duel ?", Callback = function()
-				ctx.Dialogue:SetText("Choisis trois créatures de ta collection, puis affrontez-vous chacun votre tour : Attaque, Garde (un peu de soin et moitié des dégâts du prochain coup) ou Coup spécial (une fois par créature). Feu bat Nature, Nature bat Eau, Eau bat Feu. Entraîne-toi d'abord contre mon mannequin !")
+				ctx.Dialogue:SetText("Choisis trois créatures de ta collection, puis affrontez-vous chacun votre tour : Attaque et Garde remplissent ta jauge d'énergie ◆, que tu dépenses pour la capacité unique de ta créature : brûlure, poison, gel, bouclier, vol de vie... Tu peux aussi changer de créature pour profiter des éléments : Feu bat Nature, Nature bat Eau, Eau bat Feu. Entraîne-toi d'abord contre mon mannequin !")
 			end },
 			goodbye(ctx),
 		})
@@ -232,6 +232,142 @@ local function pip(ctx: Context, npc, info)
 		{ Text = "Merci Pip !", Callback = function()
 			ctx.Dialogue:Close()
 		end },
+	})
+end
+
+-- Quartiers ----------------------------------------------------------------
+
+local function rhea(ctx: Context, npc)
+	local info = ctx.Invoke("RheaInfo") or {}
+	local status = info.done and "Tu as déjà relevé le défi aujourd'hui. Reviens demain, soldat !"
+		or string.format("Défi du jour : remporte un entraînement et gagne %d ◆.", info.reward or VillageData.DailyDuelReward)
+	ctx.Dialogue:Open(npc, npc.Greeting .. "\n" .. status, {
+		{ Text = "Lancer l'entraînement", Style = "Gold", Callback = function()
+			local result = ctx.Invoke("TrainingStart")
+			if result and result.ok then
+				ctx.Dialogue:Close()
+			else
+				ctx.Dialogue:SetText((result and result.reason) or "L'entraînement n'a pas pu commencer.")
+			end
+		end },
+		{ Text = "Un conseil de combat ?", Callback = function()
+			local tips = {
+				"Garde quand ta capacité coûte cher : ça rapporte deux ◆ d'énergie d'un coup.",
+				"Une créature faible contre l'adversaire ? Change-la ! Le bouton CHANGER montre qui est fort ou faible.",
+				"Les étourdissements et le gel font sauter un tour entier. Garde-les pour un adversaire qui charge sa capacité.",
+				"Le miroir d'Aquatortue renvoie la moitié du prochain coup : parfait contre les grosses attaques.",
+				"Les coups qui percent ignorent la garde ET les boucliers.",
+			}
+			ctx.Dialogue:SetText(tips[math.random(1, #tips)])
+		end },
+		goodbye(ctx),
+	})
+end
+
+local function oswin(ctx: Context, npc)
+	local function show(text: string)
+		local result = ctx.Invoke("StallList")
+		if not (result and result.ok) then
+			ctx.Dialogue:Open(npc, (result and result.reason) or "Mon étal est fermé pour l'instant.", { goodbye(ctx) })
+			return
+		end
+		local choices = {}
+		for _, item in ipairs(result.items) do
+			local card = CardsData.CardById[item.Id]
+			local rarity = CardsData.RarityById[card.Rarity]
+			table.insert(choices, {
+				Text = item.Sold and string.format("%s  •  VENDU", card.Name) or string.format("%s (%s)  •  %d ◆", card.Name, rarity.Label, item.Price),
+				Style = item.Sold and "Ghost" or (rarity.Order >= 4 and "Gold" or "Primary"),
+				Callback = function()
+					if item.Sold then
+						ctx.Dialogue:SetText("Celle-là est partie ! Reviens demain, mon étal change chaque jour.")
+						return
+					end
+					local buy = ctx.Invoke("StallBuy", item.Id)
+					if buy and buy.ok then
+						ctx.Dialogue:Close()
+						ctx.ShowResults(buy.results)
+					else
+						ctx.Dialogue:SetText((buy and buy.reason) or "La vente a échoué.")
+					end
+				end,
+			})
+		end
+		table.insert(choices, goodbye(ctx))
+		ctx.Dialogue:Open(npc, text, choices)
+	end
+	show(npc.Greeting .. "\nVoici l'étal du jour :")
+end
+
+local function maelis(ctx: Context, npc)
+	local function show(text: string)
+		local result = ctx.Invoke("SetsInfo") or {}
+		local choices = {}
+		for _, s in ipairs(result.sets or {}) do
+			local complete = s.Owned >= s.Total
+			local el = CardsData.Elements[s.Element]
+			table.insert(choices, {
+				Text = s.Claimed and string.format("%s  •  %d/%d  ✓", s.Label, s.Owned, s.Total)
+					or string.format("%s  •  %d/%d%s", s.Label, s.Owned, s.Total, complete and ("  →  " .. (result.reward or 0) .. " ◆") or ""),
+				Style = (complete and not s.Claimed) and "Gold" or "Ghost",
+				Callback = function()
+					if s.Claimed then
+						ctx.Dialogue:SetText(string.format("La collection %s est déjà inscrite dans les archives. Bravo !", el.Label))
+						return
+					end
+					local claim = ctx.Invoke("ClaimSet", s.Element)
+					if claim and claim.ok then
+						ctx.Toast(string.format("Collection %s complète : +%d ◆ !", el.Label, claim.gems), UIKit.Colors.Gold)
+						show(string.format("Magnifique ! Toutes les créatures %s sont désormais archivées.", el.Label))
+					else
+						ctx.Dialogue:SetText((claim and claim.reason) or "Les archives sont fermées.")
+					end
+				end,
+			})
+		end
+		table.insert(choices, goodbye(ctx))
+		ctx.Dialogue:Open(npc, text, choices)
+	end
+	show(npc.Greeting)
+end
+
+local function gaelle(ctx: Context, npc)
+	ctx.Dialogue:Open(npc, npc.Greeting, {
+		{ Text = "Prendre le panier du jour", Style = "Gold", Callback = function()
+			local result = ctx.Invoke("FarmBasket")
+			if result and result.ok then
+				ctx.Toast(string.format("Panier de Gaëlle : +%d ◆ !", result.gems), UIKit.Colors.Gold)
+				ctx.Dialogue:SetText(string.format("Tiens, %d gemmes trouvées dans le foin ! Reviens demain, il y aura un nouveau panier.", result.gems))
+			else
+				ctx.Dialogue:SetText((result and result.reason) or "Le panier n'est pas encore prêt.")
+			end
+		end },
+		goodbye(ctx),
+	})
+end
+
+local function odile(ctx: Context, npc)
+	local stories = {
+		"On raconte que Nyxaria, la reine des éclipses, n'apparaît qu'aux dresseurs qui ont ouvert cent boosters... mais ce ne sont peut-être que des histoires.",
+		"Quand j'étais petite, un Pyrogriff s'était posé sur le toit de la chapelle. Toute la ville avait accouru avec des seaux !",
+		"Les cristaux de Sélène chantent plus fort la nuit. Les vieux disent que c'est là que les créatures rares se montrent.",
+		"Le Cercle des Arcanes a été gravé bien avant les remparts. Ses six piliers retiennent la magie des éléments.",
+	}
+	local tips = {
+		"Échange tes doublons au Comptoir des Échanges, sur la Grand-Place : installez-vous chacun sur un cercle de la même table.",
+		"Oswin, aux entrepôts, vend chaque jour trois créatures choisies. Passe le voir !",
+		"Maelis, aux archives du donjon, récompense ceux qui réunissent toutes les créatures d'un élément.",
+		"Gaëlle, à la ferme, offre un panier de gemmes chaque jour. Il serait dommage de l'oublier !",
+		"Approche-toi du Cercle des Arcanes pendant un duel : tu pourras le regarder en direct.",
+	}
+	ctx.Dialogue:Open(npc, npc.Greeting, {
+		{ Text = "Raconte-moi une histoire", Style = "Primary", Callback = function()
+			ctx.Dialogue:SetText(stories[math.random(1, #stories)])
+		end },
+		{ Text = "Un conseil ?", Callback = function()
+			ctx.Dialogue:SetText(tips[math.random(1, #tips)])
+		end },
+		goodbye(ctx),
 	})
 end
 
@@ -254,6 +390,16 @@ function talkTo(ctx: Context, npcId: string)
 		selene(ctx, npc)
 	elseif npcId == "Varek" then
 		varek(ctx, npc)
+	elseif npcId == "Rhea" then
+		rhea(ctx, npc)
+	elseif npcId == "Oswin" then
+		oswin(ctx, npc)
+	elseif npcId == "Maelis" then
+		maelis(ctx, npc)
+	elseif npcId == "Gaelle" then
+		gaelle(ctx, npc)
+	elseif npcId == "Odile" then
+		odile(ctx, npc)
 	end
 end
 

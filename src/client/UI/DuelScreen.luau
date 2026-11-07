@@ -14,6 +14,7 @@ local CardsData = require(ReplicatedStorage:WaitForChild("Configs"):WaitForChild
 local UIKit = require(script.Parent:WaitForChild("UIKit"))
 local CardView = require(script.Parent:WaitForChild("CardView"))
 local DuelCinematic = require(script.Parent:WaitForChild("DuelCinematic"))
+local Arena3D = require(script.Parent:WaitForChild("Arena3D"))
 
 local DuelScreen = {}
 DuelScreen.__index = DuelScreen
@@ -184,6 +185,10 @@ local function side(slab: Instance, parent: Instance, info, isLeft: boolean, col
 end
 
 function DuelScreen:Start(data)
+	if self.Arena then
+		self.Arena:Destroy()
+		self.Arena = nil
+	end
 	self.Token += 1
 	local token = self.Token
 	self:Clear()
@@ -282,18 +287,6 @@ function DuelScreen:Start(data)
 		return
 	end
 
-	-- Compte à rebours dans le médaillon.
-	for _, text in ipairs({ "3", "2", "1", "GO !" }) do
-		vs.Text = text
-		medalScale.Scale = 1.25
-		UIKit.tween(medalScale, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
-		UIKit.playSound("Click", 0.6, text == "GO !" and 0.7 or 1.2)
-		task.wait(text == "GO !" and 0.6 or 0.6)
-		if token ~= self.Token then
-			spinConn:Disconnect()
-			return
-		end
-	end
 	-- Sortie : les camps repartent, le médaillon disparaît.
 	UIKit.tween(leftPanel, 0.35, { Position = UDim2.fromScale(-0.5, 0) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 	UIKit.tween(rightPanel, 0.35, { Position = UDim2.fromScale(1.5, 0) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -305,15 +298,36 @@ function DuelScreen:Start(data)
 	task.wait(0.4)
 	spinConn:Disconnect()
 	intro:Destroy()
-	UIKit.tween(root, 0.3, { BackgroundTransparency = 0.15 })
+
+	-- Entrée en 3D dans le Colisée : chaque duelliste et son Anima.
+	local ok, arena = pcall(Arena3D.new, data, self.Callbacks.Shake)
+	if ok and arena then
+		self.Arena = arena
+		UIKit.tween(root, 0.5, { BackgroundTransparency = 1 })
+		local played, err = pcall(arena.Entrance, arena)
+		if not played then
+			warn("[Arena3D]", err)
+		end
+		if token ~= self.Token then
+			return
+		end
+	else
+		if not ok then
+			warn("[Arena3D]", arena)
+		end
+		UIKit.tween(root, 0.3, { BackgroundTransparency = 0.15 })
+	end
 	self:BuildBattle()
+	self:Say("COMBAT !", GOLD, 60)
+	UIKit.playSound("Hit", 0.8, 0.8)
 end
 
 -------------------------------------------------------------------------------
 -- Outils communs
 -------------------------------------------------------------------------------
 local STRONG = { Feu = "Nature", Nature = "Eau", Eau = "Feu", Foudre = "Eau", Ombre = "Lumiere", Lumiere = "Ombre" }
-local SPECIAL_POWER = 1.8
+local ENERGY_MAX = CardsData.Combat.EnergyMax
+local ENERGY = Color3.fromRGB(130, 215, 255)
 local INK = Color3.fromRGB(14, 10, 24)
 local PANEL_LIGHT = Color3.fromRGB(44, 34, 70)
 local GREEN = Color3.fromRGB(95, 225, 130)
@@ -466,7 +480,7 @@ function DuelScreen:Select(data)
 				CardView.create(c, { Parent = s.Thumb })
 				s.Name.Text = c.Name
 				s.Name.TextColor3 = CREAM
-				s.Stats.Text = string.format('<font color="#%s">%s</font>   ♥ %d   ⚔ %d', el.Color:ToHex(), el.Label, c.HP, c.Attack)
+				s.Stats.Text = string.format('<font color="#%s">%s</font>   ♥ %d   ⚔ %d   <font color="#FFD778">✦ %s</font>', el.Color:ToHex(), el.Label, c.HP, c.Attack, c.Ability.Name)
 				s.Stroke.Color = el.Color
 				s.Num.TextColor3 = GOLD
 				hp += c.HP
@@ -621,6 +635,17 @@ function DuelScreen:BuildBattle()
 			UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = d })
 			dots[i] = d
 		end
+		-- Jauge d'énergie : un losange par point.
+		local pips = {}
+		for i = 1, ENERGY_MAX do
+			local pip = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(132 + (i - 1) * 20, 34), Size = UDim2.fromOffset(11, 11),
+				Rotation = 45, BackgroundColor3 = ENERGY, BackgroundTransparency = 0.85, ZIndex = 63, Parent = tag })
+			UIKit.stroke(pip, ENERGY, 1, 0.3)
+			pips[i] = pip
+		end
+		-- Statuts de la créature active (icône + tours restants).
+		local statusLabel = text(stage, "", { RichText = true, Font = UIKit.Fonts.Bold, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromOffset(x, CARD_Y + 194),
+			Size = UDim2.fromOffset(260, 22), ZIndex = 64 }, 17)
 
 		-- Halo coloré derrière la carte (s'illumine pendant son tour).
 		local aura = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(x, CARD_Y), Size = UDim2.fromOffset(300, 300),
@@ -636,7 +661,7 @@ function DuelScreen:BuildBattle()
 		UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = guard })
 
 		self.Sides[key] = { Slot = slot, Aura = aura, Bar = hp, Dots = dots, Guard = guard, Active = 0, Color = color, BaseX = x, Deck = info.Deck,
-			Offset = Vector2.zero }
+			Offset = Vector2.zero, Pips = pips, Status = statusLabel, Energy = 0 }
 	end
 
 	-- Indicateur de tour (haut, centre) avec minuteur intégré.
@@ -656,28 +681,29 @@ function DuelScreen:BuildBattle()
 
 	-- Plateau d'actions : glisse vers le haut pendant ton tour.
 	local tray = UIKit.new("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromOffset(550, 700),
-		Size = UDim2.fromOffset(700, 96), ZIndex = 62, Parent = stage })
+		Size = UDim2.fromOffset(1060, 96), ZIndex = 62, Parent = stage })
 	UIKit.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center,
-		VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 16), SortOrder = Enum.SortOrder.LayoutOrder, Parent = tray })
+		VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder, Parent = tray })
 	self.Tray = tray
 	self.Buttons = {}
 	local defs = {
-		{ "Attack", "ATTAQUE", "⚔", Color3.fromRGB(255, 110, 85) },
-		{ "Defend", "GARDE", "◈", Color3.fromRGB(80, 165, 255) },
-		{ "Special", "SPÉCIAL", "✦", GOLD },
+		{ "Attack", "ATTAQUE", "⚔", Color3.fromRGB(255, 110, 85), 210 },
+		{ "Defend", "GARDE", "◈", Color3.fromRGB(80, 165, 255), 210 },
+		{ "Ability", "CAPACITÉ", "✦", GOLD, 330 },
+		{ "Switch", "CHANGER", "⇄", Color3.fromRGB(150, 120, 230), 210 },
 	}
 	for i, def in ipairs(defs) do
-		local button = UIKit.new("TextButton", { Text = "", AutoButtonColor = false, Size = UDim2.fromOffset(210, 84), BackgroundColor3 = Color3.new(1, 1, 1),
+		local button = UIKit.new("TextButton", { Text = "", AutoButtonColor = false, Size = UDim2.fromOffset(def[5], 84), BackgroundColor3 = Color3.new(1, 1, 1),
 			LayoutOrder = i, ZIndex = 63, Selectable = true, Parent = tray })
 		UIKit.corner(button, 16)
 		UIKit.gradient(button, def[4]:Lerp(Color3.fromRGB(40, 30, 60), 0.35), def[4]:Lerp(Color3.fromRGB(12, 8, 20), 0.7), 90)
 		local stroke = UIKit.stroke(button, def[4], 2, 0)
 		text(button, def[3], { TextColor3 = Color3.new(1, 1, 1), AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 14, 0.5, 0), Size = UDim2.fromOffset(44, 44),
 			ZIndex = 64 }, 36)
-		text(button, def[2], { Font = UIKit.Fonts.Title, Position = UDim2.fromOffset(66, 14), Size = UDim2.new(1, -76, 0, 28),
+		local title = text(button, def[2], { Font = UIKit.Fonts.Title, RichText = true, Position = UDim2.fromOffset(66, 12), Size = UDim2.new(1, -76, 0, 28),
 			TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 64 }, 24)
-		local detail = text(button, "", { Font = UIKit.Fonts.Bold, RichText = true, TextColor3 = Color3.fromRGB(230, 220, 245), Position = UDim2.fromOffset(66, 46),
-			Size = UDim2.new(1, -76, 0, 22), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 64 }, 15)
+		local detail = text(button, "", { Font = UIKit.Fonts.Bold, RichText = true, TextColor3 = Color3.fromRGB(230, 220, 245), Position = UDim2.fromOffset(66, 44),
+			Size = UDim2.new(1, -76, 0, 30), TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 64 }, 14)
 		local scale = UIKit.new("UIScale", { Parent = button })
 		button.MouseEnter:Connect(function()
 			if button.Active then
@@ -690,8 +716,17 @@ function DuelScreen:BuildBattle()
 		button.Activated:Connect(function()
 			self:Choose(def[1])
 		end)
-		self.Buttons[def[1]] = { Button = button, Detail = detail, Stroke = stroke, Scale = scale }
+		self.Buttons[def[1]] = { Button = button, Title = title, Detail = detail, Stroke = stroke, Scale = scale }
 	end
+
+	-- Choix de la créature qui entre (au-dessus du plateau).
+	local bench = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromOffset(550, 528), Size = UDim2.fromOffset(560, 96),
+		BackgroundColor3 = INK, BackgroundTransparency = 0.1, Visible = false, ZIndex = 70, Parent = stage })
+	UIKit.corner(bench, 14)
+	UIKit.stroke(bench, Color3.fromRGB(150, 120, 230), 2, 0)
+	UIKit.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder, Parent = bench })
+	self.Bench = bench
 	self.Waiting = nil
 
 	-- Animation continue : les cartes flottent doucement, l'aura respire.
@@ -713,11 +748,78 @@ function DuelScreen:BuildBattle()
 		end
 	end)
 
+	if self.Arena then
+		for _, s in pairs(self.Sides) do
+			s.Slot.Visible = false
+			s.Aura.Visible = false
+		end
+	end
 	self:SetButtons(false)
 	self:UpdateSide("Me", data.Me.Deck)
 	self:UpdateSide("Opp", data.Opp.Deck)
+	self:SetEnergy("Me", data.MyEnergy)
+	self:SetEnergy("Opp", data.OppEnergy)
 	if self.PendingTurn then
 		self:Turn(self.PendingTurn)
+	end
+end
+
+-- Index de la créature active d'une équipe (champ Active du serveur, sinon
+-- la première encore debout).
+local function activeIndexOf(deck): number
+	for i, f in ipairs(deck) do
+		if f.Active and f.HP > 0 then
+			return i
+		end
+	end
+	for i, f in ipairs(deck) do
+		if f.HP > 0 then
+			return i
+		end
+	end
+	return 0
+end
+
+-- Icônes des statuts actifs d'une créature (« 🔥2  ☠3  ◈24 »).
+local function statusText(f): string
+	if not f then
+		return ""
+	end
+	local parts = {}
+	local function add(kind: string, value: any)
+		local st = CardsData.Statuses[kind]
+		local suffix = type(value) == "number" and tostring(value) or ""
+		table.insert(parts, string.format('<font color="#%s">%s%s</font>', st.Color:ToHex(), st.Icon, suffix))
+	end
+	for _, kind in ipairs({ "Burn", "Poison", "Stun", "Freeze", "Weak", "Rage" }) do
+		if (f[kind] or 0) > 0 then
+			add(kind, f[kind])
+		end
+	end
+	if (f.Shield or 0) > 0 then
+		add("Shield", f.Shield)
+	end
+	if f.Reflect then
+		add("Reflect", true)
+	end
+	return table.concat(parts, "   ")
+end
+
+function DuelScreen:SetEnergy(key: string, value: number?)
+	local s = self.Sides and self.Sides[key]
+	if not s or value == nil then
+		return
+	end
+	local gained = value > s.Energy
+	s.Energy = value
+	for i, pip in ipairs(s.Pips) do
+		local on = i <= value
+		UIKit.tween(pip, 0.25, { BackgroundTransparency = on and 0 or 0.85 })
+		if on and gained and i > value - 2 then
+			local sc = pip:FindFirstChildOfClass("UIScale") or UIKit.new("UIScale", { Parent = pip })
+			sc.Scale = 1.8
+			UIKit.tween(sc, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
+		end
 	end
 end
 
@@ -731,15 +833,29 @@ function DuelScreen:RefreshActions()
 	end
 	local mult = multiplier(c.Element, t.Element)
 	local tag = mult > 1 and ' <font color="#7CF59A">×1,5</font>' or (mult < 1 and ' <font color="#FF8080">×0,75</font>' or "")
-	local base = math.floor(c.Attack * mult + 0.5)
-	self.Buttons.Attack.Detail.Text = string.format("%d dégâts%s", base, tag)
-	self.Buttons.Defend.Detail.Text = string.format("+%d PV  •  bloque ½", math.floor(c.HP * 0.08 + 0.5))
-	self.Buttons.Special.Detail.Text = mine.SpecialUsed and "Déjà utilisé" or string.format("%d dégâts%s", math.floor(base * SPECIAL_POWER + 0.5), tag)
+	local atk = c.Attack * ((mine.Weak or 0) > 0 and CardsData.Combat.WeakFactor or 1) * ((mine.Rage or 0) > 0 and CardsData.Combat.RageFactor or 1)
+	local base = math.floor(atk * mult + 0.5)
+	self.Buttons.Attack.Detail.Text = string.format("%d dégâts%s  ·  +%d◆", base, tag, CardsData.Combat.EnergyAttack)
+	self.Buttons.Defend.Detail.Text = string.format("+%d PV · bloque ½ · +%d◆", math.floor(c.HP * CardsData.Combat.GuardHeal + 0.5), CardsData.Combat.EnergyDefend)
+	local ability = c.Ability
+	local affordable = me.Energy >= ability.Cost
+	self.Buttons.Ability.Title.Text = string.format('%s  <font color="#%s">%d◆</font>', string.upper(ability.Name),
+		affordable and "82D7FF" or "FF8080", ability.Cost)
+	self.Buttons.Ability.Detail.Text = CardsData.abilityText(ability)
+	local benchCount = 0
+	for i, f in ipairs(me.Deck) do
+		if f.HP > 0 and i ~= me.Active then
+			benchCount += 1
+		end
+	end
+	self.Buttons.Switch.Detail.Text = benchCount > 0 and string.format("%d en réserve · prend le tour", benchCount) or "Aucune réserve"
+	self.CanAbility = affordable
+	self.CanSwitch = benchCount > 0
 end
 
-function DuelScreen:SetButtons(enabled: boolean, canSpecial: boolean?)
+function DuelScreen:SetButtons(enabled: boolean)
 	for action, b in pairs(self.Buttons or {}) do
-		local on = enabled and (action ~= "Special" or canSpecial == true)
+		local on = enabled and (action ~= "Ability" or self.CanAbility == true) and (action ~= "Switch" or self.CanSwitch == true)
 		b.Button.Active = on
 		UIKit.tween(b.Button, 0.2, { BackgroundTransparency = on and 0 or 0.55 })
 		b.Stroke.Transparency = on and 0 or 0.7
@@ -748,7 +864,9 @@ function DuelScreen:SetButtons(enabled: boolean, canSpecial: boolean?)
 		end
 	end
 	self.CanAct = enabled
-	self.CanSpecial = canSpecial
+	if not enabled and self.Bench then
+		self.Bench.Visible = false
+	end
 end
 
 -- Plateau d'actions : visible uniquement pendant ton tour.
@@ -756,10 +874,57 @@ function DuelScreen:ShowTray(visible: boolean)
 	if self.Tray then
 		UIKit.tween(self.Tray, 0.45, { Position = UDim2.fromOffset(550, visible and 536 or 700) }, SMOOTH)
 	end
+	if not visible and self.Bench then
+		self.Bench.Visible = false
+	end
+end
+
+-- Liste des créatures de réserve ; un clic les fait entrer.
+function DuelScreen:OpenBench()
+	local bench = self.Bench
+	if bench.Visible then
+		bench.Visible = false
+		return
+	end
+	for _, child in ipairs(bench:GetChildren()) do
+		if child:IsA("GuiButton") then
+			child:Destroy()
+		end
+	end
+	local me, opp = self.Sides.Me, self.Sides.Opp
+	local target = opp.Deck[opp.Active]
+	local t = target and card(target.Id)
+	for i, f in ipairs(me.Deck) do
+		local c = card(f.Id)
+		if c and f.HP > 0 and i ~= me.Active then
+			local el = CardsData.Elements[c.Element]
+			local mult = t and multiplier(c.Element, t.Element) or 1
+			local hint = mult > 1 and '  <font color="#7CF59A">fort ×1,5</font>' or (mult < 1 and '  <font color="#FF8080">faible ×0,75</font>' or "")
+			local b = UIKit.new("TextButton", { Text = "", AutoButtonColor = false, Size = UDim2.fromOffset(260, 76), BackgroundColor3 = el.Dark,
+				LayoutOrder = i, ZIndex = 71, Selectable = true, Parent = bench })
+			UIKit.corner(b, 12)
+			UIKit.stroke(b, el.Color, 2, 0)
+			text(b, c.Name, { Font = UIKit.Fonts.Title, Position = UDim2.fromOffset(14, 8), Size = UDim2.new(1, -28, 0, 26),
+				TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 72 }, 22)
+			text(b, string.format('<font color="#%s">%s</font>  ♥ %d/%d%s', el.Color:ToHex(), el.Label, f.HP, f.MaxHP, hint),
+				{ Font = UIKit.Fonts.Bold, RichText = true, Position = UDim2.fromOffset(14, 40), Size = UDim2.new(1, -28, 0, 22),
+					TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 72 }, 15)
+			b.Activated:Connect(function()
+				if self.CanAct then
+					bench.Visible = false
+					self:SetButtons(false)
+					self:ShowTray(false)
+					UIKit.playSound("Click", 0.6, 1)
+					self.Callbacks.Act("Switch:" .. i)
+				end
+			end)
+		end
+	end
+	bench.Visible = true
 end
 
 function DuelScreen:Choose(action: string)
-	if not self.CanAct or (action == "Special" and not self.CanSpecial) then
+	if not self.CanAct or (action == "Ability" and not self.CanAbility) or (action == "Switch" and not self.CanSwitch) then
 		return
 	end
 	local b = self.Buttons[action]
@@ -767,6 +932,10 @@ function DuelScreen:Choose(action: string)
 		UIKit.tween(b.Scale, 0.2, { Scale = 1 }, Enum.EasingStyle.Back)
 	end)
 	UIKit.playSound("Click", 0.6, 1.1)
+	if action == "Switch" then
+		self:OpenBench()
+		return
+	end
 	self:SetButtons(false)
 	self:ShowTray(false)
 	self.Callbacks.Act(action)
@@ -775,13 +944,7 @@ end
 function DuelScreen:UpdateSide(key: string, deck)
 	local s = self.Sides[key]
 	s.Deck = deck
-	local activeIndex = 0
-	for i, f in ipairs(deck) do
-		if f.HP > 0 then
-			activeIndex = i
-			break
-		end
-	end
+	local activeIndex = activeIndexOf(deck)
 	for i, f in ipairs(deck) do
 		local d = s.Dots[i]
 		if d then
@@ -790,15 +953,22 @@ function DuelScreen:UpdateSide(key: string, deck)
 	end
 	if activeIndex ~= s.Active then
 		local previous = s.View
+		local previousFighter = s.Active > 0 and deck[s.Active]
+		local knockedOut = previousFighter == nil or previousFighter.HP <= 0
 		s.Active = activeIndex
 		if previous then
-			-- K.O. : la carte bascule, tombe et s'efface.
 			s.Busy = true
 			local dir = key == "Me" and -1 or 1
 			local holder = UIKit.new("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = s.Slot.Position,
 				Size = s.Slot.Size, ZIndex = 63, Parent = s.Slot.Parent })
 			previous.Parent = holder
-			UIKit.tween(holder, 0.6, { Rotation = 30 * dir, Position = s.Slot.Position + UDim2.fromOffset(60 * dir, 140) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			if knockedOut then
+				-- K.O. : la carte bascule, tombe et s'efface.
+				UIKit.tween(holder, 0.6, { Rotation = 30 * dir, Position = s.Slot.Position + UDim2.fromOffset(60 * dir, 140) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			else
+				-- Changement : la carte recule vers sa réserve.
+				UIKit.tween(holder, 0.45, { Rotation = -8 * dir, Position = s.Slot.Position + UDim2.fromOffset(260 * dir, -40) }, Enum.EasingStyle.Quint)
+			end
 			task.delay(0.6, function()
 				holder:Destroy()
 				s.Busy = false
@@ -806,6 +976,9 @@ function DuelScreen:UpdateSide(key: string, deck)
 		end
 		local f = deck[activeIndex]
 		local c = f and card(f.Id)
+		if self.Arena then
+			self.Arena:SetActive(key, c and c.Id, knockedOut)
+		end
 		if c then
 			local view = CardView.create(c, { Detailed = true, Parent = s.Slot })
 			view.ZIndex = 65
@@ -824,10 +997,12 @@ function DuelScreen:UpdateSide(key: string, deck)
 		setBar(s.Bar, f.HP / f.MaxHP)
 		s.Bar.Label.Text = string.format("%d / %d", f.HP, f.MaxHP)
 		s.Guard.Visible = f.Guard == true
+		s.Status.Text = statusText(f)
 	else
 		setBar(s.Bar, 0)
 		s.Bar.Label.Text = "K.O."
 		s.Guard.Visible = false
+		s.Status.Text = ""
 	end
 end
 
@@ -866,6 +1041,8 @@ function DuelScreen:Turn(data)
 	self.PendingTurn = nil
 	self:UpdateSide("Me", data.Me)
 	self:UpdateSide("Opp", data.Opp)
+	self:SetEnergy("Me", data.MyEnergy)
+	self:SetEnergy("Opp", data.OppEnergy)
 	local mine = data.Mine
 	local oppColor = RED:Lerp(Color3.new(1, 1, 1), 0.35)
 	local accent = mine and GOLD or oppColor
@@ -880,7 +1057,7 @@ function DuelScreen:Turn(data)
 		UIKit.tween(s.Aura, 0.5, { BackgroundTransparency = on and 0 or 1, Size = on and UDim2.fromOffset(380, 380) or UDim2.fromOffset(300, 300) }, SMOOTH)
 	end
 	self:RefreshActions()
-	self:SetButtons(mine, data.CanSpecial)
+	self:SetButtons(mine)
 	self:ShowTray(mine)
 	if mine then
 		UIKit.playSound("Click", 0.5, 1.4)
@@ -901,6 +1078,31 @@ local function popNumber(parent: Instance, value: string, color: Color3, big: bo
 	end)
 end
 
+local EFFECT_SAY = {
+	Burn = "BRÛLURE !",
+	Poison = "EMPOISONNÉ !",
+	Stun = "ÉTOURDI !",
+	Freeze = "GELÉ !",
+	Weak = "AFFAIBLI !",
+	Rage = "RAGE !",
+	Shield = "BOUCLIER !",
+	Reflect = "MIROIR !",
+	Cleanse = "PURIFIÉ !",
+}
+
+-- Anneau qui s'élargit autour d'une carte (garde, bouclier, soin).
+local function ring(slot: Instance, color: Color3)
+	local r = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1, ZIndex = 84, Parent = slot })
+	UIKit.corner(r, 18)
+	local st = UIKit.stroke(r, color, 6, 0)
+	UIKit.tween(r, 0.7, { Size = UDim2.fromScale(1.35, 1.25) }, SMOOTH)
+	UIKit.tween(st, 0.7, { Transparency = 1 })
+	task.delay(0.8, function()
+		r:Destroy()
+	end)
+end
+
 function DuelScreen:Resolve(data)
 	if not self.Stage then
 		return
@@ -908,33 +1110,128 @@ function DuelScreen:Resolve(data)
 	self:SetButtons(false)
 	self:ShowTray(false)
 	local myId = Players.LocalPlayer.UserId
+	local token = self.Token
+	local function apply()
+		if self.Stage and self.Token == token then
+			self:UpdateSide("Me", data.Me)
+			self:UpdateSide("Opp", data.Opp)
+			self:SetEnergy("Me", data.MyEnergy)
+			self:SetEnergy("Opp", data.OppEnergy)
+			self:RefreshActions()
+		end
+	end
 	local cinematic = false
 	for _, e in ipairs(data.Events) do
 		local mine = e.From == myId
-		local attacker = self.Sides[mine and "Me" or "Opp"]
+		local actorKey = mine and "Me" or "Opp"
+		local actor = self.Sides[actorKey]
 		local target = self.Sides[mine and "Opp" or "Me"]
-		if e.Action == "Defend" then
-			popNumber(attacker.Slot, "+" .. (e.Heal or 0), GREEN)
-			local ring = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(1, 1),
-				BackgroundTransparency = 1, ZIndex = 84, Parent = attacker.Slot })
-			UIKit.corner(ring, 18)
-			local st = UIKit.stroke(ring, Color3.fromRGB(120, 195, 255), 6, 0)
-			UIKit.tween(ring, 0.7, { Size = UDim2.fromScale(1.35, 1.25) }, SMOOTH)
-			UIKit.tween(st, 0.7, { Transparency = 1 })
-			task.delay(0.8, function()
-				ring:Destroy()
-			end)
+		local arena = self.Arena
+		if e.Action == "Tick" then
+			-- Brûlure ou poison en début de tour.
+			local st = CardsData.Statuses[e.Status]
+			if arena then
+				arena:Tick(actorKey, st.Color, st.Icon .. " -" .. e.Damage)
+			end
+			popNumber(actor.Slot, st.Icon .. " -" .. e.Damage, st.Color)
+			if actor.View then
+				local tint = UIKit.new("Frame", { BackgroundColor3 = st.Color, BackgroundTransparency = 0.4, Size = UDim2.fromScale(1, 1), ZIndex = 83, Parent = actor.Slot })
+				UIKit.corner(tint, 12)
+				UIKit.tween(tint, 0.6, { BackgroundTransparency = 1 })
+				task.delay(0.65, function()
+					tint:Destroy()
+				end)
+			end
+			self:Say(string.upper(st.Label), st.Color)
+			UIKit.playSound("Burst", 0.4, e.Status == "Burn" and 1.1 or 0.7)
+			self.Callbacks.Shake(0.15, 0.2)
+		elseif e.Action == "Stunned" then
+			local st = CardsData.Statuses[e.Status]
+			self:Say(st.Icon .. " " .. string.upper(st.Label) .. " : tour perdu", st.Color, 34)
+			ring(actor.Slot, st.Color)
+		elseif e.Action == "Switch" then
+			self:Say("⇄ CHANGEMENT", Color3.fromRGB(190, 170, 255))
+			UIKit.playSound("Swoosh", 0.5, 1.2)
+		elseif e.Action == "Defend" then
+			if arena then
+				arena:Guard(actorKey, "+" .. (e.Heal or 0))
+			end
+			popNumber(actor.Slot, "+" .. (e.Heal or 0), GREEN)
+			ring(actor.Slot, Color3.fromRGB(120, 195, 255))
 			self:Say("GARDE", Color3.fromRGB(130, 200, 255))
 			UIKit.playSound("Click", 0.6, 0.8)
+		elseif e.Action == "Ability" and not e.Hits then
+			-- Capacité sans attaque : soin, bouclier, miroir...
+			self:Say("✦ " .. string.upper(e.Ability or ""), GOLD, 36)
+			UIKit.playSound("Charge", 0.6, 1.1)
+			ring(actor.Slot, GOLD)
+			if arena then
+				if (e.Heal or 0) > 0 then
+					arena:Buff(actorKey, "+" .. e.Heal)
+				elseif e.Shield then
+					arena:Buff(actorKey, "◈ " .. e.Shield, Color3.fromRGB(120, 200, 255))
+				else
+					arena:Buff(actorKey)
+				end
+			end
+			if (e.Heal or 0) > 0 then
+				popNumber(actor.Slot, "+" .. e.Heal, GREEN)
+			elseif e.Shield then
+				popNumber(actor.Slot, "◈ " .. e.Shield, Color3.fromRGB(120, 200, 255))
+			end
+			local effects = e.Effects or {}
+			if effects[1] and EFFECT_SAY[effects[#effects]] then
+				task.delay(1, function()
+					if self.Stage and self.Token == token then
+						self:Say(EFFECT_SAY[effects[#effects]], GOLD)
+					end
+				end)
+			end
+		elseif arena then
+			-- Attaque ou capacité offensive, mise en scène dans le Colisée 3D.
+			cinematic = true
+			if e.Action == "Ability" then
+				self:Say("✦ " .. string.upper(e.Ability or ""), GOLD, 40)
+			end
+			task.spawn(function()
+				local ok, err = pcall(arena.Attack, arena, actorKey, e)
+				if not ok then
+					warn("[Arena3D]", err)
+				end
+				if self.Stage and self.Token == token then
+					apply()
+					local verdict, color
+					if e.KO then
+						verdict, color = "K.O. !", Color3.fromRGB(255, 90, 90)
+					elseif e.Execute then
+						verdict, color = "EXÉCUTION !", Color3.fromRGB(255, 120, 200)
+					elseif e.Effects and e.Effects[1] and EFFECT_SAY[e.Effects[1]] then
+						verdict, color = EFFECT_SAY[e.Effects[1]], CardsData.Statuses[e.Effects[1]].Color
+					elseif (e.Reflected or 0) > 0 then
+						verdict, color = "RENVOYÉ !", Color3.fromRGB(200, 240, 255)
+					elseif e.Mult > 1 then
+						verdict, color = "Super efficace !", Color3.fromRGB(124, 245, 154)
+					elseif e.Blocked then
+						verdict, color = "Paré !", Color3.fromRGB(130, 200, 255)
+					elseif e.Mult < 1 then
+						verdict, color = "Peu efficace...", Color3.fromRGB(200, 190, 220)
+					end
+					if verdict then
+						self:Say(verdict, color, e.KO and 56 or 40)
+					end
+					if (e.Heal or 0) > 0 then
+						arena:Number(actorKey, "+" .. e.Heal, GREEN)
+					end
+				end
+			end)
 		else
-			-- Vraie cinématique plein écran ; l'arène se met à jour à la fin.
-			local atkFighter = attacker.Deck[attacker.Active]
+			-- Attaque ou capacité offensive : vraie cinématique plein écran.
+			local atkFighter = actor.Deck[actor.Active]
 			local tgtFighter = target.Deck[target.Active]
 			local atkCard = atkFighter and card(atkFighter.Id)
 			local tgtCard = tgtFighter and card(tgtFighter.Id)
 			if atkCard and tgtCard then
 				cinematic = true
-				local token = self.Token
 				self.Tray.Visible = false
 				task.spawn(function()
 					local ok, err = pcall(DuelCinematic.play, {
@@ -959,9 +1256,13 @@ function DuelScreen:Resolve(data)
 					end
 					if self.Stage and self.Token == token then
 						self.Tray.Visible = true
-						self:UpdateSide("Me", data.Me)
-						self:UpdateSide("Opp", data.Opp)
-						self:RefreshActions()
+						apply()
+						if (e.Reflected or 0) > 0 then
+							popNumber(actor.Slot, "◇ -" .. e.Reflected, Color3.fromRGB(200, 240, 255))
+						end
+						if (e.Heal or 0) > 0 then
+							popNumber(actor.Slot, "+" .. e.Heal, GREEN)
+						end
 						if e.KO then
 							self:Say("K.O. !", Color3.fromRGB(255, 90, 90), 56)
 						end
@@ -970,16 +1271,9 @@ function DuelScreen:Resolve(data)
 			end
 		end
 	end
-	if cinematic then
-		return
+	if not cinematic then
+		task.delay(0.5, apply)
 	end
-	task.delay(0.5, function()
-		if self.Stage then
-			self:UpdateSide("Me", data.Me)
-			self:UpdateSide("Opp", data.Opp)
-			self:RefreshActions()
-		end
-	end)
 end
 
 function DuelScreen:Result(data)
@@ -1018,6 +1312,10 @@ function DuelScreen:Result(data)
 end
 
 function DuelScreen:Close()
+	if self.Arena then
+		self.Arena:Destroy()
+		self.Arena = nil
+	end
 	self.Token += 1
 	self.Stage = nil
 	self.SelectStage = nil

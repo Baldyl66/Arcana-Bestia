@@ -22,7 +22,7 @@ local BLACK = Color3.new(0, 0, 0)
 local CARD_W, CARD_H = 300, 438
 
 -- Durées (le serveur attend un peu plus longtemps, voir DuelCombat).
-DuelCinematic.Duration = { Attack = 2.4, Special = 3.1 }
+DuelCinematic.Duration = { Attack = 2.4, Ability = 3.1 }
 
 -- Style des éclats par élément.
 local VFX = {
@@ -161,6 +161,16 @@ local function burst(parent: Instance, center: Vector2, element: string, power: 
 	end
 end
 
+-- Verdict affiché quand une capacité inflige un statut.
+local EFFECTS = {
+	Burn = { "BRÛLURE !", Color3.fromRGB(255, 130, 60) },
+	Poison = { "EMPOISONNÉ !", Color3.fromRGB(150, 220, 90) },
+	Stun = { "ÉTOURDI !", Color3.fromRGB(255, 225, 80) },
+	Freeze = { "GELÉ !", Color3.fromRGB(150, 220, 255) },
+	Weak = { "AFFAIBLI !", Color3.fromRGB(190, 140, 255) },
+	Rage = { "RAGE !", Color3.fromRGB(255, 90, 90) },
+}
+
 local function flash(parent: Instance, color: Color3, alpha: number, dur: number, z: number)
 	local f = new("Frame", { BackgroundColor3 = color, BackgroundTransparency = alpha, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1), ZIndex = z, Parent = parent })
 	UIKit.tween(f, dur, { BackgroundTransparency = 1 })
@@ -195,7 +205,7 @@ end
 	Bloque jusqu'à la fin de la séquence. ]]
 function DuelCinematic.play(options)
 	local e = options.Event
-	local special = e.Action == "Special"
+	local special = e.Action == "Ability"
 	local alive = options.Alive
 	local dir = options.Mine and 1 or -1 -- 1 : on attaque vers la droite
 	local atkEl = CardsData.Elements[options.AttackerElement] or CardsData.Elements.Feu
@@ -247,7 +257,7 @@ function DuelCinematic.play(options)
 	new("UIStroke", { Color = special and GOLD or WHITE, Thickness = 3, Parent = banner })
 	UIKit.label({ Text = string.upper(cardName(options.AttackerId)), Font = UIKit.Fonts.Title, TextColor3 = WHITE, Position = UDim2.fromOffset(24, 6),
 		Size = UDim2.new(1, -48, 0, 52), TextXAlignment = dir > 0 and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right, ZIndex = Z + 21, Parent = banner }, 48)
-	UIKit.label({ Text = special and "✦  COUP SPÉCIAL  ✦" or "⚔  ATTAQUE", Font = UIKit.Fonts.Black, TextColor3 = special and Color3.fromRGB(255, 245, 200) or WHITE,
+	UIKit.label({ Text = special and ("✦  " .. string.upper(e.Ability or "Capacité") .. "  ✦") or "⚔  ATTAQUE", Font = UIKit.Fonts.Black, TextColor3 = special and Color3.fromRGB(255, 245, 200) or WHITE,
 		Position = UDim2.fromOffset(24, 56), Size = UDim2.new(1, -48, 0, 28), TextXAlignment = dir > 0 and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right,
 		ZIndex = Z + 21, Parent = banner }, 24)
 	for _, l in ipairs(banner:GetDescendants()) do
@@ -329,7 +339,8 @@ function DuelCinematic.play(options)
 	target.Position = UDim2.fromOffset(hitX, H * 0.5)
 	tgtScale.Scale = 1.25
 	local center = Vector2.new(hitX, H * 0.5)
-	local hits = special and 2 or 1
+	local hitList = e.Hits or { e.Damage }
+	local hits = math.max(1, #hitList)
 	for h = 1, hits do
 		flash(root, WHITE, 0, 0.25, Z + 30)
 		burst(stage, center, options.AttackerElement, special and 1.5 or (e.Mult > 1 and 1.25 or 1), Z + 15)
@@ -353,8 +364,9 @@ function DuelCinematic.play(options)
 	end
 
 	-- Chiffre de dégâts géant.
-	local dmgColor = special and GOLD or (e.Mult > 1 and Color3.fromRGB(255, 120, 70) or Color3.fromRGB(255, 90, 90))
-	local dmg = UIKit.label({ Text = "-" .. tostring(e.Damage), Font = UIKit.Fonts.Title, TextColor3 = dmgColor, AnchorPoint = Vector2.new(0.5, 0.5),
+	local dmgColor = (e.Damage == 0 and (e.Absorbed or 0) > 0) and Color3.fromRGB(120, 200, 255) or special and GOLD or (e.Mult > 1 and Color3.fromRGB(255, 120, 70) or Color3.fromRGB(255, 90, 90))
+	local dmgText = (e.Damage == 0 and (e.Absorbed or 0) > 0) and ("◈ " .. e.Absorbed) or ("-" .. tostring(e.Damage))
+	local dmg = UIKit.label({ Text = dmgText, Font = UIKit.Fonts.Title, TextColor3 = dmgColor, AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromOffset(hitX + 230 * dir, H * 0.42), Size = UDim2.fromOffset(360, 150), Rotation = -6 * dir, ZIndex = Z + 25, Parent = stage }, 140)
 	new("UIStroke", { Color = BLACK, Thickness = 5, Parent = dmg })
 	local dmgScale = new("UIScale", { Scale = 2.4, Parent = dmg })
@@ -363,6 +375,13 @@ function DuelCinematic.play(options)
 	local verdict, vColor
 	if e.KO then
 		verdict, vColor = "K.O. !", Color3.fromRGB(255, 80, 80)
+	elseif e.Execute then
+		verdict, vColor = "EXÉCUTION !", Color3.fromRGB(255, 120, 200)
+	elseif e.Effects and e.Effects[1] and EFFECTS[e.Effects[1]] then
+		local fx = EFFECTS[e.Effects[1]]
+		verdict, vColor = fx[1], fx[2]
+	elseif (e.Reflected or 0) > 0 then
+		verdict, vColor = "RENVOYÉ !", Color3.fromRGB(200, 240, 255)
 	elseif e.Mult > 1 then
 		verdict, vColor = "SUPER EFFICACE !", Color3.fromRGB(124, 245, 154)
 	elseif e.Blocked then
@@ -393,7 +412,7 @@ function DuelCinematic.play(options)
 	end
 
 	-- 4. Sortie ------------------------------------------------------------
-	local remaining = DuelCinematic.Duration[special and "Special" or "Attack"] - (special and 2.0 or 1.15)
+	local remaining = DuelCinematic.Duration[special and "Ability" or "Attack"] - (special and 2.0 or 1.15) + (hits - 1) * 0.1
 	if not wait(math.max(remaining - 0.3, 0.3), alive) then
 		return cleanup()
 	end

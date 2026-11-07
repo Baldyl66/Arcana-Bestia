@@ -28,7 +28,9 @@
         "NpcAction": { "$className": "RemoteFunction" },
         "Notify": { "$className": "RemoteEvent" },
         "DuelEvent": { "$className": "RemoteEvent" },
-        "PurchaseGranted": { "$className": "RemoteEvent" }
+        "PurchaseGranted": { "$className": "RemoteEvent" },
+        "TradeAction": { "$className": "RemoteFunction" },
+        "TradeEvent": { "$className": "RemoteEvent" }
       }
     },
 

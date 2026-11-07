@@ -28,6 +28,8 @@ local DailyRewards = require(UIFolder:WaitForChild("DailyRewards"))
 local DuelInvite = require(UIFolder:WaitForChild("DuelInvite"))
 local Shop = require(UIFolder:WaitForChild("Shop"))
 local DuelScreen = require(UIFolder:WaitForChild("DuelScreen"))
+local Trade = require(UIFolder:WaitForChild("Trade"))
+local Spectator = require(UIFolder:WaitForChild("Spectator"))
 local Music = require(UIFolder:WaitForChild("Music"))
 local BoosterMenu = require(UIFolder:WaitForChild("BoosterMenu"))
 local WorldMap = require(UIFolder:WaitForChild("WorldMap"))
@@ -164,6 +166,7 @@ local dailyPanel
 local shopPanel
 local boosterMenu
 local mapPanel
+local tradeUI
 
 -------------------------------------------------------------------------------
 -- Course : Maj (maintenir), L3 (bascule) ou bouton tactile « Courir ».
@@ -256,6 +259,9 @@ local function setProfile(newProfile)
 	local previousReady = profile and profile.QuestsReady
 	profile = newProfile
 	hud:SetProfile(profile)
+	if tradeUI then
+		tradeUI:Refresh()
+	end
 	if shopPanel then
 		shopPanel:SetProfile(profile)
 	end
@@ -709,7 +715,31 @@ local function setDuelMode(on: boolean)
 		setCoreGui(true)
 	end
 end
+-- Échanges entre joueurs (invite « Échanger » près des autres joueurs).
+tradeUI = Trade.new(gui, UIKit.panel, {
+	GetProfile = function()
+		return profile
+	end,
+	Toast = toast,
+	CanTrade = function()
+		return state == "Game" and not inDuelScreen
+	end,
+})
+table.insert(panels, tradeUI.Panel)
+
+-- Spectateurs des duels du Cercle des Arcanes.
+local spectator = Spectator.new(toast)
+
 DuelEvent.OnClientEvent:Connect(function(kind: string, data)
+	if kind:sub(1, 4) == "Spec" then
+		if not inDuelScreen then
+			spectator:Handle(kind, data)
+		end
+		return
+	end
+	if kind == "Select" or kind == "Start" then
+		spectator:Stop()
+	end
 	if kind == "Select" or kind == "Start" then
 		setDuelMode(true)
 		Music.play("Duel")

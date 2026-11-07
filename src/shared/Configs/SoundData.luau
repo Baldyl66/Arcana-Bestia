@@ -15,8 +15,10 @@ SoundData.Music = {
 -- Effets (UIKit.playSound et Ambience). Pitch : vitesse de lecture.
 SoundData.Effects = {
 	-- Interface
-	Click = { Id = "", Volume = 0.4 },
-	Prompt = { Id = "", Volume = 0.4 },
+	-- Petit coup de bois sec (Pro Sound Effects), joué plus aigu pour les clics.
+	-- Variante à essayer : « Smaltra UI click » rbxassetid://114782931135220.
+	Click = { Id = "rbxassetid://9125654847", Volume = 0.35, Pitch = 1.5 },
+	Prompt = { Id = "rbxassetid://9125654847", Volume = 0.4, Pitch = 1.1 },
 	Reward = { Id = "rbxassetid://1839881844", Volume = 0.5 }, -- jingle court (APM)
 	-- Carnet
 	BookOpen = { Id = "rbxassetid://9118835414", Volume = 0.6 }, -- grimoire en cuir qui s'ouvre
