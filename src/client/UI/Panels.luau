@@ -94,9 +94,8 @@ function Panels.collection(parent: Instance)
 	end
 
 	-- Filtres : une pastille par rareté, avec le compte découvert / total.
-	local tabs = UIKit.new("ScrollingFrame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(0, 76), Size = UDim2.new(1, 0, 0, 46),
-		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.X, ScrollingDirection = Enum.ScrollingDirection.X, ScrollBarThickness = 0,
-		Parent = content })
+	-- Les filtres se partagent toute la largeur (ils tiennent quelle que soit la fenêtre).
+	local tabs = UIKit.new("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(0, 76), Size = UDim2.new(1, 0, 0, 46), Parent = content })
 	UIKit.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder,
 		VerticalAlignment = Enum.VerticalAlignment.Center, Parent = tabs })
 
@@ -197,7 +196,8 @@ function Panels.collection(parent: Instance)
 		table.insert(tabList, { Id = rarity.Id, Color = rarity.Color })
 	end
 	for index, tab in ipairs(tabList) do
-		local b, setActive, label = pill(tabs, "", tab.Color, tab.Id == "Tout" and 140 or 178, index)
+		local b, setActive, label = pill(tabs, "", tab.Color, 100, index)
+		b.Size = UDim2.new(1 / #tabList, -7, 0, 40)
 		tabStates[tab.Id] = setActive
 		tabLabels[tab.Id] = label
 		b.Activated:Connect(function()
