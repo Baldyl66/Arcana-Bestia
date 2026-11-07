@@ -1,0 +1,3 @@
+-- Remplace le script par défaut de Roblox (même nom dans StarterPlayerScripts) :
+-- plus de bruits de pas, saut et atterrissage « classiques » de Roblox.
+-- Intentionnellement vide.

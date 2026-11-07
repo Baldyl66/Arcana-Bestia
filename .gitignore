@@ -1,0 +1,12 @@
+# Project place file
+/ArcanaBestia.rbxlx
+
+# Roblox Studio lock files
+/*.rbxlx.lock
+/*.rbxl.lock
+
+sourcemap.json
+
+# Sources 3D et archives lourdes (gardées en local seulement)
+/Modele 3D/
+/*.zip

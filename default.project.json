@@ -1,0 +1,75 @@
+{
+  "name": "ArcanaBestia",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "Configs": {
+        "$className": "Folder",
+        "CardsData": {
+          "$path": "src/shared/Configs/CardsData.luau"
+        },
+        "VillageData": {
+          "$path": "src/shared/Configs/VillageData.luau"
+        },
+        "ShopData": {
+          "$path": "src/shared/Configs/ShopData.luau"
+        },
+        "SoundData": {
+          "$path": "src/shared/Configs/SoundData.luau"
+        }
+      },
+      "Remotes": {
+        "$className": "Folder",
+        "OpenBooster": { "$className": "RemoteFunction" },
+        "GetProfile": { "$className": "RemoteFunction" },
+        "ClaimDaily": { "$className": "RemoteFunction" },
+        "ProfileChanged": { "$className": "RemoteEvent" },
+        "NpcAction": { "$className": "RemoteFunction" },
+        "Notify": { "$className": "RemoteEvent" },
+        "DuelEvent": { "$className": "RemoteEvent" },
+        "PurchaseGranted": { "$className": "RemoteEvent" }
+      }
+    },
+
+    "ReplicatedFirst": {
+      "$path": "src/first"
+    },
+
+    "ServerScriptService": {
+      "$path": "src/server"
+    },
+
+    "StarterPlayer": {
+      "$properties": {
+        "CameraMaxZoomDistance": 120,
+        "CharacterWalkSpeed": 20
+      },
+      "StarterPlayerScripts": {
+        "$path": "src/client"
+      }
+    },
+
+    "Workspace": {
+      "$properties": {
+        "Gravity": 196.2,
+        "StreamingEnabled": false
+      }
+    },
+
+    "Lighting": {
+      "$properties": {
+        "Technology": "Future",
+        "GlobalShadows": true,
+        "Brightness": 2.6,
+        "ClockTime": 14.5
+      }
+    },
+
+    "SoundService": {
+      "$properties": {
+        "RespectFilteringEnabled": true
+      }
+    }
+  }
+}
