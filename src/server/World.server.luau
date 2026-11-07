@@ -959,6 +959,9 @@ end
 -- six piliers élémentaires à cristal flottant, pierres runiques en lévitation
 -- (animées côté client, CircleFX), bancs et bannières en retrait.
 -- Le modèle garde le nom « Colosseum » (repères et scripts existants).
+-- Agrandissement global du Cercle des Arcanes.
+local CIRCLE_SCALE = 1.5
+
 local function buildColosseum()
 	local col = Instance.new("Model")
 	col.Name = "Colosseum"
@@ -1023,11 +1026,15 @@ local function buildColosseum()
 		return p
 	end
 	local G = TOP + 0.03
+	-- Anneaux : un vrai trait fait de segments posés sur le pourtour (et non un
+	-- disque néon caché par un disque de marbre, qui scintillait de près).
 	for _, r in ipairs({ 22.5, 20.8, 9.5, 8.6 }) do
-		glow(part({ Name = "Anneau", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.04, r * 2, r * 2), CFrame = vertical(CFrame.new(base + Vector3.new(0, G, 0))) }))
-		-- Le centre de l'anneau est recouvert de marbre pour ne garder qu'un trait.
-		decorative(part({ Name = "Creux", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.05, r * 2 - 0.5, r * 2 - 0.5),
-			CFrame = vertical(CFrame.new(base + Vector3.new(0, G + 0.005, 0))), Material = M.Marble, Color = marble, Parent = col }))
+		local segments = math.max(24, math.floor(r * 4))
+		local length = 2 * math.pi * r / segments + 0.08
+		for k = 0, segments - 1 do
+			local a = (k + 0.5) * 360 / segments
+			glow(part({ Name = "Anneau", Size = Vector3.new(length, 0.06, 0.28), CFrame = facing(a, r, G) })) -- X du repère = tangente au cercle
+		end
 	end
 	-- Runes entre les deux grands anneaux.
 	for i = 0, 35 do
@@ -1147,8 +1154,10 @@ local function buildColosseum()
 				Material = M.Metal, Color = gold, Parent = col }))
 		end
 	end
+	-- Construit à taille « intime », puis agrandi d'un bloc autour du centre.
+	col.WorldPivot = CFrame.new(base)
+	col:ScaleTo(CIRCLE_SCALE)
 end
-
 ---------------------------------------------------------------------------
 -- Prairie hors les murs : bosquets de sapins et de feuillus, hors chemins,
 -- douves et abords du colisée.

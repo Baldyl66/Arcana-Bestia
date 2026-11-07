@@ -29,6 +29,15 @@ for _, p in ipairs(autel:GetDescendants()) do
 		p.LocalTransparencyModifier = 1
 	end
 end
+-- Disque de runes flottant au-dessus du cristal (« mini portail ») : retiré.
+local runesAir = autel:FindFirstChild("runes_air", true)
+if runesAir then
+	for _, d in ipairs({ runesAir, table.unpack(runesAir:GetDescendants()) }) do
+		if d:IsA("BasePart") or d:IsA("Decal") then
+			d.LocalTransparencyModifier = 1
+		end
+	end
+end
 
 -- Lumière pulsée dans le cristal.
 local cristal = trouver("cristal")

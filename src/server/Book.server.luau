@@ -70,32 +70,55 @@ local function createBookTool(): Tool
 	for _, descendant in ipairs(book:GetDescendants()) do
 		if descendant:IsA("MeshPart") then
 			local look = BOOK_PALETTE[string.lower(descendant.Name)]
-			if look then
+			local textured = descendant:FindFirstChildWhichIsA("SurfaceAppearance") ~= nil or descendant.TextureID ~= ""
+			if textured then
+				-- Une pièce texturée (couvertures « ARCANA », reliure, pages de menu)
+				-- garde les couleurs de sa texture : une teinte la noircirait.
+				descendant.Color = Color3.new(1, 1, 1)
+				descendant.Material = Enum.Material.SmoothPlastic
+			elseif look then
 				descendant.Color = look[1]
 				descendant.Material = look[2]
-			else
-				if descendant:FindFirstChildWhichIsA("SurfaceAppearance") or descendant.TextureID ~= "" then
-					descendant.Color = Color3.new(1, 1, 1)
-				end
 			end
 		end
 	end
+	-- La coque en cuir (« couverture ») déborde un peu de sa boîte à l'avant et à
+	-- l'arrière : elle recouvrait les couvertures texturées. On les sort, chacune
+	-- de son côté (l'avant regarde vers -Z, le dos vers +Z) ; valeur testée en jeu.
+	-- Le modèle importé contient ses propres articulations (Motor6D) : en main,
+	-- elles ramèneraient chaque pièce à sa place d'origine et annuleraient le
+	-- décalage ci-dessous. Tout est soudé à la poignée plus bas, on les retire.
+	for _, joint in ipairs(book:GetDescendants()) do
+		if joint:IsA("JointInstance") or joint:IsA("WeldConstraint") then
+			joint:Destroy()
+		end
+	end
+	-- L'anneau doré et la gemme bouchent le trou de l'image de couverture : ils suivent.
+	for name, dz in pairs({ couverture_avant = -0.16, ["or"] = -0.16, gemme = -0.16, couverture_dos = 0.16 }) do
+		local cover = book:FindFirstChild(name, true)
+		if cover and cover:IsA("BasePart") then
+			cover.CFrame = cover.CFrame * CFrame.new(0, 0, dz)
+		end
+	end
+
 	local _, bounds = book:GetBoundingBox()
 	local largest = math.max(bounds.X, bounds.Y, bounds.Z)
 	if largest > 0 then
 		book:ScaleTo(book:GetScale() * 1.6 / largest)
 	end
 
-	-- Orientation en main. Repère de la poignée Roblox (bras le long du
-	-- corps) : +Z = haut, +Y = devant, +X = extérieur (droite).
+	-- Orientation en main, mesurée dans Studio avec le livre équipé : la pose
+	-- « livre en main » tient la poignée devant la poitrine, debout (+Y = haut),
+	-- tournée de 33° vers la droite du personnage.
 	-- Repère du livre : +Y = haut, -Z = couverture avant, +X = reliure.
-	-- On veut le livre debout, couverture avant tournée vers l'extérieur,
-	-- comme dans l'animation d'ouverture.
-	local inHand = CFrame.fromMatrix(Vector3.zero, Vector3.new(0, -1, 0), Vector3.new(0, 0, 1))
+	-- On veut le livre debout, couverture vers l'avant (légèrement tournée vers
+	-- l'extérieur, 15°), reliure côté main droite :
+	--   livre/poignée = (poignée/corps)⁻¹ × (livre/corps) = rotY(-33°) × rotY(-15°).
+	local inHand = CFrame.Angles(0, math.rad(-48), 0)
 	local boxCF = book:GetBoundingBox()
 	local centerOffset = book:GetPivot():ToObjectSpace(boxCF)
-	-- La main tient le bas du livre : centre un peu au-dessus de la poignée.
-	book:PivotTo(handle.CFrame * CFrame.new(0, 0, 0.35) * inHand * CFrame.new(-centerOffset.Position))
+	-- Centre du livre juste au-dessus de la main.
+	book:PivotTo(handle.CFrame * CFrame.new(0, 0.25, 0) * inHand * CFrame.new(-centerOffset.Position))
 	for _, descendant in ipairs(book:GetDescendants()) do
 		if descendant:IsA("BasePart") then
 			local weld = Instance.new("WeldConstraint")

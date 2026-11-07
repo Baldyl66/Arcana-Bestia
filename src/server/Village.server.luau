@@ -2277,7 +2277,7 @@ local npcSpots = {
 		local gate = math.rad(L.ColosseumGate)
 		-- Au bord du Cercle des Arcanes, à côté de l'allée d'entrée.
 		local a = gate + math.rad(16)
-		local pos = Vector3.new(c.X, L.Ground + 0.5, c.Y) + Vector3.new(math.cos(a), 0, math.sin(a)) * 36
+		local pos = Vector3.new(c.X, L.Ground + 0.5, c.Y) + Vector3.new(math.cos(a), 0, math.sin(a)) * 52
 		local outward = Vector3.new(math.cos(gate), 0, math.sin(gate))
 		return CFrame.lookAt(pos, pos + outward)
 	end)(),
@@ -2929,7 +2929,7 @@ local function startDuel(a: Player, b: Player)
 	for index, p in ipairs({ a, b }) do
 		local character = p.Character
 		if character then
-			local pos = center + side * (index == 1 and 14 or -14) + Vector3.new(0, 4, 0)
+			local pos = center + side * (index == 1 and 20 or -20) + Vector3.new(0, 4, 0)
 			character:PivotTo(CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z)))
 		end
 	end
@@ -3055,7 +3055,7 @@ function actions.TrainingStart(player, profile)
 	local sideDir = Vector3.new(-math.sin(gate), 0, math.cos(gate))
 	local character = player.Character
 	if character then
-		local pos = center + sideDir * 14 + Vector3.new(0, 4, 0)
+		local pos = center + sideDir * 20 + Vector3.new(0, 4, 0)
 		character:PivotTo(CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z)))
 	end
 	local bot = DuelCombat.newBot("Mannequin de Varek")

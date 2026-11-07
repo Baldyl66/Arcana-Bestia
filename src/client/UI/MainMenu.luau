@@ -223,7 +223,8 @@ function MainMenu:Layout()
 	if viewport.X < 2 or viewport.Y < 2 then
 		return
 	end
-	local compact = viewport.Y < 560 or viewport.X / viewport.Y > 2.05
+	-- Compact uniquement sur les écrans vraiment bas (téléphone en paysage).
+	local compact = viewport.Y < 500
 	if compact ~= self.Compact then
 		self.Compact = compact
 		self.Description.Visible = not compact
@@ -263,7 +264,7 @@ function MainMenu:Layout()
 	local contentH = compact and 390 or 600
 	local inset = compact and 0.9 or 0.86
 	local scale = math.min(viewport.Y * inset / contentH, viewport.X * 0.9 / 560)
-	self.ContentScale.Scale = math.clamp(scale, 0.55, 1.6) * (UIKit.Settings.UIScale or 1)
+	self.ContentScale.Scale = math.clamp(scale, 0.55, 1.2) * (UIKit.Settings.UIScale or 1)
 end
 
 function MainMenu:SetProgress(progress: number)

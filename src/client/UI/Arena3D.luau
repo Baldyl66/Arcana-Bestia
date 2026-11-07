@@ -20,8 +20,8 @@ local Arena3D = {}
 Arena3D.__index = Arena3D
 
 local L = VillageData.Layout
-local PLAYER_DIST = 14 -- les duellistes (placés par le serveur)
-local ANIMA_DIST = 7 -- les Anima, devant leur dresseur
+local PLAYER_DIST = 20 -- les duellistes (placés par le serveur)
+local ANIMA_DIST = 10 -- les Anima, devant leur dresseur
 local SIZE = { Commun = 2.6, PeuCommun = 3, Rare = 3.5, Epique = 4.2, Legendaire = 5 }
 local LIGHT = {
 	Feu = Color3.fromRGB(255, 220, 120),
@@ -274,7 +274,7 @@ function Arena3D.new(data, shake: (number, number) -> (), opts)
 	-- Plan large : la caméra regarde l'axe de côté, ton Anima à gauche.
 	local perp = Vector3.new(math.cos(gate), 0, math.sin(gate))
 	local function wide(side: number): CFrame
-		local pos = self.Center + perp * side * 25 + Vector3.new(0, 8, 0)
+		local pos = self.Center + perp * side * 32 + Vector3.new(0, 10, 0)
 		return CFrame.lookAt(pos, self.Center + Vector3.new(0, 3, 0))
 	end
 	self.Wide = wide(1)
