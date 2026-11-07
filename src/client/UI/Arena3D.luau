@@ -454,6 +454,11 @@ local function buildAnima(cardId: string, level: number?): (Model, number)
 	glow.Parent = root
 	local aura = emitter(root, element, 12)
 	aura.Name = "Aura"
+	if model:GetAttribute("Rig") then
+		-- Modèle détaillé et déjà coloré : lumière et aura discrètes.
+		glow.Brightness = 0.5
+		aura.Rate = 3
+	end
 	-- Effets d'impact (déclenchés à la demande avec :Emit).
 	local burst = emitter(root, element, 0)
 	burst.Name = "Burst"

@@ -465,9 +465,9 @@ function BoosterMenu.new(parent: Instance, callbacks: Callbacks)
 		local slot = UIKit.new("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(480, 300),
 			Size = UDim2.fromOffset(CARD_W, CARD_H), ZIndex = 37, Parent = cardStage })
 		local pop = UIKit.new("UIScale", { Scale = 0.15, Parent = slot })
-		-- Halo de rareté (allumé au retournement).
+		-- Halo de rareté (désactivé : plus d'aura derrière les cartes).
 		local glow = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(1.9, 1.5),
-			BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 1, ZIndex = 37, Parent = slot })
+			BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 1, Visible = false, ZIndex = 37, Parent = slot })
 		UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = glow })
 		UIKit.new("UIGradient", { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.3, 0.55),
 			NumberSequenceKeypoint.new(0.5, 0.35), NumberSequenceKeypoint.new(0.7, 0.55), NumberSequenceKeypoint.new(1, 1) }), Parent = glow })
@@ -561,7 +561,7 @@ function BoosterMenu.new(parent: Instance, callbacks: Callbacks)
 					ray.BackgroundColor3 = rarity.Color
 				end
 			end
-			s.Rays.Visible = true
+			-- Rayons et halo derrière les cartes retirés (demande du joueur).
 			s.RaySpeed = 15 + rarity.Order * 10
 		end
 		if rarity.Order >= 4 then

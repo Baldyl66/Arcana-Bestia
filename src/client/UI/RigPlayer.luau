@@ -150,7 +150,13 @@ local function apply(state)
 	end
 end
 
--- Construit le modèle à la taille voulue (plus grande dimension ≈ size × 1.6 studs).
+-- Taille à l'écran : plus grande dimension ≈ size × SIZE_FACTOR studs.
+local SIZE_FACTOR = 2.4
+-- Seuls les petits blocs lumineux (yeux, braises, pointes de flammes) restent
+-- en Neon ; les grandes masses de flammes passent en mat (sinon tout éblouit).
+local NEON_MAX_VOXELS = 2
+
+-- Construit le modèle à la taille voulue.
 function RigPlayer.build(data, size: number): Model
 	local model = Instance.new("Model")
 	local root = Instance.new("Part")
@@ -188,7 +194,7 @@ function RigPlayer.build(data, size: number): Model
 		end
 	end
 	local extent = maxV - minV
-	local k = size * 1.6 / math.max(extent.X, extent.Y, extent.Z, 1e-3)
+	local k = size * SIZE_FACTOR / math.max(extent.X, extent.Y, extent.Z, 1e-3)
 	state.K = k
 	state.Offset = CFrame.new(-(minV + maxV) / 2 * k)
 	model:SetAttribute("HalfHeight", extent.Y * k / 2)
@@ -220,7 +226,8 @@ function RigPlayer.build(data, size: number): Model
 				p.BottomSurface = Enum.SurfaceType.Smooth
 				p.Size = Vector3.new(b[4], b[5], b[6]) * vox * k
 				p.Color = entry[1]
-				p.Material = if entry[2] then Enum.Material.Neon else Enum.Material.SmoothPlastic
+				local small = b[4] * b[5] * b[6] <= NEON_MAX_VOXELS
+				p.Material = if entry[2] and small then Enum.Material.Neon else Enum.Material.SmoothPlastic
 				p.Transparency = entry[3] or 0
 				p:SetAttribute("BaseT", p.Transparency)
 				p.CFrame = joint.CFrame * CFrame.new((Vector3.new(b[1], b[2], b[3]) + Vector3.new(b[4], b[5], b[6]) / 2) * vox * k)
