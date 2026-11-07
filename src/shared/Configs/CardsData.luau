@@ -283,6 +283,7 @@ local IMAGES = {
 	flamichat = "rbxassetid://98209524872340",
 	solaryx = "rbxassetid://83081529632941",
 	glacimar = "rbxassetid://85416088782367",
+	ombrelin = "rbxassetid://84235419248305",
 }
 
 CardsData.CardById = {}
