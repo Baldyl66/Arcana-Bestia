@@ -343,7 +343,7 @@ local function cardFan(parent: Instance, ids: { string }, spread: number?)
 		if card then
 			local k = i - (n + 1) / 2
 			local slot = UIKit.new("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5),
-				Position = UDim2.fromScale(0.5 + k * (spread or 0.24), 0.52 + math.abs(k) * 0.05), Size = UDim2.fromScale(0.36, 0.7),
+				Position = UDim2.fromScale(0.5 + k * (spread or 0.24), 0.47 + math.abs(k) * 0.035), Size = UDim2.fromScale(0.36, 0.7),
 				Rotation = k * 11, ZIndex = 10 - math.abs(k), Parent = holder })
 			local view = CardView.create(card, { Detailed = true, Parent = slot })
 			view.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -701,7 +701,15 @@ function Tutorial.new(parent: Instance, onFinished: () -> ())
 		UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = chip })
 		UIKit.gradient(chip, p.Color:Lerp(Color3.new(1, 1, 1), 0.3), p.Color:Lerp(Color3.new(0, 0, 0), 0.35), 90)
 		UIKit.stroke(chip, Color3.new(1, 1, 1), 2, 0.3)
-		UIKit.label({ Text = p.Icon, Font = UIKit.Fonts.Black, TextColor3 = INK, Size = UDim2.fromScale(1, 1), ZIndex = 35, Parent = chip }, 24)
+		if p.Icon == "◆" then
+			-- Losange dessiné (le caractère de la police est décentré).
+			UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(16, 16), Rotation = 45,
+				BackgroundColor3 = INK, BorderSizePixel = 0, ZIndex = 35, Parent = chip })
+		else
+			UIKit.label({ Text = p.Icon, Font = UIKit.Fonts.Black, TextColor3 = INK, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+				Size = UDim2.fromScale(0.62, 0.62), TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center, ZIndex = 35,
+				Parent = chip }, 24)
+		end
 		UIKit.label({ Text = p.Title, Font = UIKit.Fonts.Black, TextColor3 = CREAM, Position = UDim2.fromOffset(80, 10), Size = UDim2.new(1, -96, 0, 22),
 			TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 34, Parent = row }, 19)
 		UIKit.label({ Text = p.Text, Font = UIKit.Fonts.Body, TextColor3 = MUTED, Position = UDim2.fromOffset(80, 34), Size = UDim2.new(1, -96, 0, 36),

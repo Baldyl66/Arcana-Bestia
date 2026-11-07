@@ -7,7 +7,12 @@ local SoundData = {}
 
 -- Musiques : fondu enchaîné selon l'écran (voir client/UI/Music).
 SoundData.Music = {
-	Menu = { Id = "rbxassetid://88915410935193", Volume = 0.45 }, -- « Main Theme »
+	-- « Magical Tale » (APM) : mélodie féerique au célesta, douce et vivante.
+	-- Autres pistes calmes à essayer : « Tiny Ripples in the River » (harpe,
+	-- 9039607235), « Pastoral Joy B » (1846656266), « As Through A Mist »
+	-- (1840524498), « Dream State » (1840547127). Ancien thème, trop dynamique :
+	-- « Main Theme » 88915410935193.
+	Menu = { Id = "rbxassetid://1842186397", Volume = 0.4 },
 	Explore = { Id = "rbxassetid://80451125186395", Volume = 0.3 }, -- « Orchestral Serenity »
 	Duel = { Id = "rbxassetid://1848108091", Volume = 0.4 }, -- « Fight For A Tomorrow » (APM)
 }

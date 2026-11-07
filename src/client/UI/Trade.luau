@@ -303,7 +303,7 @@ function Trade:SetState(s)
 		self:HideInvite()
 		panel:Open()
 	end
-	panel.Window:FindFirstChild("Title").Text = "ÉCHANGE AVEC " .. string.upper(s.Partner.Name)
+	panel.Window:FindFirstChild("Title", true).Text = "ÉCHANGE AVEC " .. string.upper(s.Partner.Name)
 
 	-- Offres.
 	for key, side in pairs(self.Sides) do

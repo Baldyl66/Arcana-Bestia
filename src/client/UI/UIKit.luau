@@ -641,24 +641,41 @@ function UIKit.panel(parent: Instance, title: string): Panel
 		end
 	end
 
-	UIKit.label({
+	-- Bandeau de titre.
+	local banner = UIKit.new("Frame", { Name = "Banner", Position = UDim2.fromOffset(10, 10), Size = UDim2.new(1, -20, 0, 66),
+		BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, Parent = window })
+	UIKit.corner(banner, 6)
+	UIKit.new("UIGradient", { Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 12, 36)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(70, 40, 110)), ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 12, 36)) }), Parent = banner })
+	UIKit.new("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 2),
+		BackgroundColor3 = Color3.fromRGB(225, 180, 95), BorderSizePixel = 0, Parent = banner })
+	local titleLabel = UIKit.label({
 		Name = "Title",
 		Text = title,
 		Font = UIKit.Fonts.Title,
-		TextColor3 = Color3.fromRGB(255, 220, 140),
-		AnchorPoint = Vector2.new(0.5, 0),
-		Size = UDim2.new(1, -180, 0, 50),
-		Position = UDim2.new(0.5, 0, 0, 16),
+		TextColor3 = Color3.new(1, 1, 1),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Size = UDim2.new(1, -220, 0, 46),
+		Position = UDim2.fromScale(0.5, 0.5),
 		TextXAlignment = Enum.TextXAlignment.Center,
-		Parent = window,
-	}, 44)
-	UIKit.new("UIStroke", { Color = Color3.fromRGB(60, 25, 10), Thickness = 2, Parent = window:FindFirstChild("Title") })
+		Parent = banner,
+	}, 40)
+	UIKit.new("UIGradient", { Color = ColorSequence.new(Color3.fromRGB(255, 240, 190), Color3.fromRGB(225, 165, 70)), Rotation = 90, Parent = titleLabel })
+	UIKit.new("UIStroke", { Color = Color3.fromRGB(40, 15, 5), Thickness = 2, Parent = titleLabel })
+	-- Filets et losanges de part et d'autre du titre.
+	for _, sx in ipairs({ -1, 1 }) do
+		local line = UIKit.new("Frame", { AnchorPoint = Vector2.new(sx < 0 and 1 or 0, 0.5), Position = UDim2.new(0.5, sx * 190, 0.5, 0),
+			Size = UDim2.new(0.5, -260, 0, 2), BackgroundColor3 = Color3.fromRGB(225, 180, 95), BorderSizePixel = 0, Parent = banner })
+		UIKit.new("UIGradient", { Transparency = NumberSequence.new(sx < 0 and 1 or 0, sx < 0 and 0 or 1), Parent = line })
+		UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, sx * 180, 0.5, 0), Size = UDim2.fromOffset(9, 9),
+			Rotation = 45, BackgroundColor3 = Color3.fromRGB(225, 180, 95), BorderSizePixel = 0, Parent = banner })
+	end
 
 	local content = UIKit.new("Frame", {
 		Name = "Content",
 		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(20, 72),
-		Size = UDim2.new(1, -40, 1, -90),
+		Position = UDim2.fromOffset(22, 92),
+		Size = UDim2.new(1, -44, 1, -108),
 		Parent = window,
 	})
 
@@ -670,18 +687,30 @@ function UIKit.panel(parent: Instance, title: string): Panel
 	} :: any
 	layout()
 
-	panel.CloseButton = UIKit.button({
-		Text = "X",
-		Style = "Danger",
-		Size = UDim2.fromOffset(48, 48),
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -14, 0, 14),
-		TextSize = 22,
-		Parent = window,
-		Callback = function()
-			panel:Close()
-		end,
-	})
+	local close = UIKit.new("TextButton", { Name = "Close", Text = "", AutoButtonColor = false, AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -24, 0, 43), Size = UDim2.fromOffset(46, 46), BackgroundColor3 = Color3.fromRGB(140, 30, 40), Selectable = true,
+		ZIndex = 3, Parent = window })
+	UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = close })
+	UIKit.stroke(close, Color3.fromRGB(240, 200, 115), 2, 0)
+	for _, r in ipairs({ 45, -45 }) do
+		local bar = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(20, 3),
+			Rotation = r, BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 4, Parent = close })
+		UIKit.corner(bar, 2)
+	end
+	local closeScale = UIKit.new("UIScale", { Parent = close })
+	close.MouseEnter:Connect(function()
+		UIKit.tween(close, 0.15, { BackgroundColor3 = Color3.fromRGB(190, 45, 55) })
+		UIKit.tween(closeScale, 0.15, { Scale = 1.08 }, Enum.EasingStyle.Back)
+	end)
+	close.MouseLeave:Connect(function()
+		UIKit.tween(close, 0.15, { BackgroundColor3 = Color3.fromRGB(140, 30, 40) })
+		UIKit.tween(closeScale, 0.15, { Scale = 1 })
+	end)
+	close.Activated:Connect(function()
+		UIKit.playSound("Click", 0.4)
+		panel:Close()
+	end)
+	panel.CloseButton = close
 
 	function panel:Open()
 		if self.IsOpen then

@@ -671,6 +671,18 @@ local function buildArena()
 				solid.CanCollide = true
 			end
 		end
+		-- Disque de runes flottant au-dessus du cristal (« portail bleu ») :
+		-- caché dès la construction (le client ne le reçoit pas toujours à temps).
+		local runesAir = model:FindFirstChild("runes_air", true)
+		if runesAir then
+			for _, d in ipairs({ runesAir, table.unpack(runesAir:GetDescendants()) }) do
+				if d:IsA("BasePart") then
+					d.Transparency = 1
+				elseif d:IsA("Decal") or d:IsA("Texture") then
+					d.Transparency = 1
+				end
+			end
+		end
 		model.Parent = arena
 		for _, name in ipairs({ "AltarDais", "AltarTrim", "ArcanaCrystal", "CrystalCore" }) do
 			local old = arena:FindFirstChild(name)
