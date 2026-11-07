@@ -13,6 +13,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CardsData = require(ReplicatedStorage:WaitForChild("Configs"):WaitForChild("CardsData"))
+local DataService = require(script.Parent:WaitForChild("DataService"))
 
 local DuelCombat = {}
 
@@ -29,7 +30,7 @@ local RULES = CardsData.Combat
 local STRONG = { Feu = "Nature", Nature = "Eau", Eau = "Feu", Foudre = "Eau", Ombre = "Lumiere", Lumiere = "Ombre" }
 
 export type Fighter = {
-	Id: string, HP: number, MaxHP: number, Attack: number, Element: string, Guard: boolean,
+	Id: string, HP: number, MaxHP: number, Attack: number, Element: string, Guard: boolean, Level: number,
 	Shield: number, Burn: number, Poison: number, Stun: number, Freeze: number, Weak: number, Rage: number, Reflect: boolean,
 }
 
@@ -44,9 +45,16 @@ local function power(card): number
 	return card.HP + card.Attack * 2 + (rarity and rarity.Order * 15 or 0)
 end
 
-local function fighter(c): Fighter
-	return { Id = c.Id, HP = c.HP, MaxHP = c.HP, Attack = c.Attack, Element = c.Element, Guard = false,
+-- Créature au combat, avec les stats de son niveau.
+local function fighter(c, level: number?): Fighter
+	level = level or 1
+	local hp, atk = CardsData.statsAt(c, level)
+	return { Id = c.Id, HP = hp, MaxHP = hp, Attack = atk, Element = c.Element, Guard = false, Level = level,
 		Shield = 0, Burn = 0, Poison = 0, Stun = 0, Freeze = 0, Weak = 0, Rage = 0, Reflect = false }
+end
+
+local function levelOf(profile, id: string): number
+	return CardsData.levelFromXP(profile.XP and profile.XP[id])
 end
 
 local function owned(profile): { any }
@@ -58,7 +66,8 @@ local function owned(profile): { any }
 		end
 	end
 	table.sort(list, function(x, y)
-		return power(x) > power(y)
+		local lx, ly = levelOf(profile, x.Id), levelOf(profile, y.Id)
+		return power(x) * (1 + lx * 0.05) > power(y) * (1 + ly * 0.05)
 	end)
 	return list
 end
@@ -68,7 +77,7 @@ function DuelCombat.deckFor(profile): { Fighter }
 	local list = owned(profile)
 	local deck = {}
 	for i = 1, math.min(DECK_SIZE, #list) do
-		table.insert(deck, fighter(list[i]))
+		table.insert(deck, fighter(list[i], levelOf(profile, list[i].Id)))
 	end
 	return deck
 end
@@ -90,7 +99,7 @@ local function deckFromPick(profile, ids): { Fighter }?
 			return nil
 		end
 		seen[id] = true
-		table.insert(deck, fighter(card))
+		table.insert(deck, fighter(card, levelOf(profile, id)))
 	end
 	return deck
 end
@@ -118,7 +127,7 @@ end
 local function snapshot(deck: { Fighter }, activeIndex: number?)
 	local out = {}
 	for i, f in ipairs(deck) do
-		out[i] = { Id = f.Id, HP = f.HP, MaxHP = f.MaxHP, Guard = f.Guard, Active = i == activeIndex, Shield = f.Shield,
+		out[i] = { Id = f.Id, Level = f.Level, HP = f.HP, MaxHP = f.MaxHP, Guard = f.Guard, Active = i == activeIndex, Shield = f.Shield,
 			Burn = f.Burn, Poison = f.Poison, Stun = f.Stun, Freeze = f.Freeze, Weak = f.Weak, Rage = f.Rage, Reflect = f.Reflect }
 	end
 	return out
@@ -191,7 +200,9 @@ function DuelCombat.botDeck(playerDeck: { Fighter }): { Fighter }
 			end
 		end
 		local c = #pool > 0 and pool[math.random(1, #pool)] or CardsData.Cards[math.random(1, #CardsData.Cards)]
-		table.insert(deck, fighter(c))
+		-- Même niveau que la créature du joueur, à un près.
+		local level = math.clamp((f.Level or 1) + math.random(-1, 0), 1, CardsData.Progression.MaxLevel)
+		table.insert(deck, fighter(c, level))
 	end
 	return deck
 end
@@ -266,7 +277,9 @@ function DuelCombat.start(a, b, profileA, profileB, fire: (any, string, any) -> 
 		setCombatFlag()
 		for _, p in ipairs({ a, b }) do
 			if isBot(p) or p.Parent then
-				fire(p, "Result", { Outcome = winner == nil and "Draw" or (winner == p and "Win" or "Lose"), Reason = reason })
+				local outcome = winner == nil and "Draw" or (winner == p and "Win" or "Lose")
+				local xp = (not isBot(p)) and DuelCombat.grantXP(p, battle.Decks[p], battle.KOs and battle.KOs[p] or 0, outcome, isBot(other(p))) or nil
+				fire(p, "Result", { Outcome = outcome, Reason = reason, XP = xp })
 			end
 		end
 		if spectate then
@@ -284,7 +297,7 @@ function DuelCombat.start(a, b, profileA, profileB, fire: (any, string, any) -> 
 			local o = other(p)
 			local cards = {}
 			for _, card in ipairs(owned(profile)) do
-				table.insert(cards, { Id = card.Id, Count = profile.Cards[card.Id] })
+				table.insert(cards, { Id = card.Id, Count = profile.Cards[card.Id], Level = levelOf(profile, card.Id) })
 			end
 			fire(p, "Select", {
 				Cards = cards,
@@ -558,6 +571,10 @@ function DuelCombat.start(a, b, profileA, profileB, fire: (any, string, any) -> 
 					battle.Energy[current] = math.min(RULES.EnergyMax, energy + RULES.EnergyAttack)
 				end
 				event.KO = target ~= nil and target.HP <= 0
+				if event.KO then
+					battle.KOs = battle.KOs or {}
+					battle.KOs[current] = (battle.KOs[current] or 0) + 1
+				end
 				event.SelfKO = mine ~= nil and mine.HP <= 0
 				broadcast(event, duration)
 			end
@@ -600,6 +617,10 @@ function DuelCombat.choose(player, action: string): (boolean, string?)
 	if not battle or battle.Over or battle.Phase ~= "Fight" then
 		return false, "Aucun combat en cours."
 	end
+	if action == "Forfeit" then
+		DuelCombat.forfeit(player, player.DisplayName .. " abandonne le combat.")
+		return true
+	end
 	if battle.Current ~= player then
 		return false, "Ce n'est pas ton tour."
 	end
@@ -627,6 +648,37 @@ function DuelCombat.choose(player, action: string): (boolean, string?)
 	end
 	battle.Choice = action
 	return true
+end
+
+-- Expérience de fin de combat pour chaque créature de l'équipe.
+-- Renvoie le détail (montées de niveau, évolutions) pour l'écran de résultat.
+function DuelCombat.grantXP(player, deck, kos: number, outcome: string, training: boolean)
+	local profile = DataService.Get(player)
+	if not (profile and deck) then
+		return nil
+	end
+	local rules = CardsData.Progression
+	local base = rules.XP[outcome] or rules.XP.Lose
+	local gain = (base + kos * rules.XP.KOBonus) * (training and rules.TrainingFactor or 1)
+	gain = math.max(1, math.floor(gain + 0.5))
+	local maxXP = CardsData.xpForLevel(rules.MaxLevel)
+	profile.XP = profile.XP or {}
+	local report = {}
+	for _, f in ipairs(deck) do
+		if (profile.Cards[f.Id] or 0) > 0 then
+			local before = profile.XP[f.Id] or 0
+			local after = math.min(maxXP, before + gain)
+			profile.XP[f.Id] = after
+			local oldLevel, newLevel = CardsData.levelFromXP(before), CardsData.levelFromXP(after)
+			local oldStage, newStage = CardsData.stageOf(oldLevel), CardsData.stageOf(newLevel)
+			table.insert(report, {
+				Id = f.Id, Gain = after - before, XP = after,
+				OldLevel = oldLevel, Level = newLevel, Evolved = newStage > oldStage,
+			})
+		end
+	end
+	DataService.MarkChanged(player)
+	return report
 end
 
 -- Abandon (départ, sortie de l'arène) : l'autre joueur gagne.

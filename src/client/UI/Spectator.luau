@@ -57,7 +57,7 @@ function Spectator:apply(data)
 				end
 			end
 		end
-		arena:SetActive(key, f and f.Id, knockedOut)
+		arena:SetActive(key, f and f.Id, knockedOut, f and f.Level)
 		if f then
 			local info = key == "Me" and self.MeInfo or self.OppInfo
 			local card = CardsData.CardById[f.Id]

@@ -257,7 +257,7 @@ function DuelCinematic.play(options)
 	new("UIStroke", { Color = special and GOLD or WHITE, Thickness = 3, Parent = banner })
 	UIKit.label({ Text = string.upper(cardName(options.AttackerId)), Font = UIKit.Fonts.Title, TextColor3 = WHITE, Position = UDim2.fromOffset(24, 6),
 		Size = UDim2.new(1, -48, 0, 52), TextXAlignment = dir > 0 and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right, ZIndex = Z + 21, Parent = banner }, 48)
-	UIKit.label({ Text = special and ("✦  " .. string.upper(e.Ability or "Capacité") .. "  ✦") or "⚔  ATTAQUE", Font = UIKit.Fonts.Black, TextColor3 = special and Color3.fromRGB(255, 245, 200) or WHITE,
+	UIKit.label({ Text = special and ("★  " .. string.upper(e.Ability or "Capacité") .. "  ★") or "◈  ATTAQUE", Font = UIKit.Fonts.Black, TextColor3 = special and Color3.fromRGB(255, 245, 200) or WHITE,
 		Position = UDim2.fromOffset(24, 56), Size = UDim2.new(1, -48, 0, 28), TextXAlignment = dir > 0 and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right,
 		ZIndex = Z + 21, Parent = banner }, 24)
 	for _, l in ipairs(banner:GetDescendants()) do

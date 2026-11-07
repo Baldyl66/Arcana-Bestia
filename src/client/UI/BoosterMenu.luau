@@ -1,8 +1,8 @@
--- Ouverture d'un booster (depuis l'autel) : l'écran s'assombrit, le booster
--- 3D est au centre et se tourne à la souris ou au doigt. « Ouvrir » joue
--- l'animation du fichier Claude Design ; une fois les cartes en éventail,
--- on clique sur chacune pour la retourner (comme dans le HTML) et la
--- créature obtenue s'affiche au-dessus de la carte.
+-- Ouverture d'un booster (depuis l'autel) : le booster 3D est au centre et
+-- se tourne à la souris ou au doigt. « Ouvrir » : le sachet tremble et se
+-- déchire, puis les vraies cartes en jaillissent, face cachée. Un clic les
+-- retourne une à une (suspense et éclat selon la rareté), « Tout révéler »
+-- les retourne toutes ; à la fin, résumé et « Ouvrir un autre ».
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -11,13 +11,12 @@ local GuiService = game:GetService("GuiService")
 local CardsData = require(ReplicatedStorage:WaitForChild("Configs"):WaitForChild("CardsData"))
 local UIKit = require(script.Parent:WaitForChild("UIKit"))
 local BoosterFX = require(script.Parent:WaitForChild("BoosterFX"))
+local CardView = require(script.Parent:WaitForChild("CardView"))
 
 local BoosterMenu = {}
 
-local OPEN_DUR, T_TEAR, T_FAN, FLIP_DUR = 5.6, 1.05, 4.2, 1.1
+local T_TEAR = 1.05 -- instant où le sachet se déchire (animation du modèle)
 local GOLD = Color3.fromRGB(232, 197, 108)
--- Couleurs des cartes du modèle : 1 = Nature, 2 = Feu, 3 = Glace.
-local CARD_COLORS = { Color3.fromRGB(111, 211, 106), Color3.fromRGB(255, 138, 52), Color3.fromRGB(127, 211, 255) }
 
 type Callbacks = {
 	Open: () -> any?,
@@ -161,27 +160,139 @@ function BoosterMenu.new(parent: Instance, callbacks: Callbacks)
 		TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 35, Parent = wallet }, 32)
 	UIKit.new("UIGradient", { Color = ColorSequence.new(Color3.fromRGB(255, 250, 235), Color3.fromRGB(190, 225, 255)), Rotation = 90, Parent = coinsLabel })
 
-	-- Bas d'écran : invitation à toucher le booster (cliquable aussi), prix inclus.
-	local hint = UIKit.new("Frame", { BackgroundTransparency = 1, Size = UDim2.fromOffset(1, 1), Visible = false, Parent = root })
-	local openButton = UIKit.new("TextButton", { Text = "", AutoButtonColor = false, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -44),
-		Size = UDim2.fromOffset(380, 48), BackgroundColor3 = INK, BackgroundTransparency = 0.2, ZIndex = 35, Parent = root })
-	UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = openButton })
-	UIKit.stroke(openButton, GOLD, 1.5, 0.2)
-	UIKit.label({ Text = 'TOUCHE LE BOOSTER POUR L\'OUVRIR   <font color="#82D7FF">' .. CardsData.Economy.BoosterPrice .. ' ◆</font>', RichText = true,
-		Font = UIKit.Fonts.Black, TextColor3 = CREAM, Size = UDim2.new(1, -24, 1, 0), Position = UDim2.fromOffset(12, 0), ZIndex = 36, Parent = openButton }, 16)
-	local cueScale = UIKit.new("UIScale", { Parent = openButton })
-	local endRow = UIKit.new("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -40),
-		Size = UDim2.fromOffset(600, 60), Visible = false, ZIndex = 34, Parent = root })
-	UIKit.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center, Padding = UDim.new(0, 16),
-		SortOrder = Enum.SortOrder.LayoutOrder, Parent = endRow })
-	local again = UIKit.button({ Text = "ENCORE UN  ·  " .. CardsData.Economy.BoosterPrice .. " ◆", Style = "Gold", Size = UDim2.fromOffset(280, 58), TextSize = 20,
-		LayoutOrder = 1, Parent = endRow, Callback = function() end })
-	UIKit.button({ Text = "TERMINER", Style = "Ghost", Size = UDim2.fromOffset(200, 58), TextSize = 20, LayoutOrder = 2, Parent = endRow, Callback = function()
-		menu:Close()
-	end })
-	for _, inst in ipairs({ header, closeButton, oddsPanel, wallet, openButton, endRow }) do
+
+
+	-- Bouton « pilule » : doré lumineux (action principale) ou sombre (secondaire),
+	-- avec pastille de prix facultative. Garde les enfants « Label » et
+	-- « Background » pour que UIKit.setDimmed fonctionne.
+	local function fancyButton(o): TextButton
+		local gold = o.Style == "Gold"
+		local button = UIKit.new("TextButton", { Name = o.Name or "Fancy", Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Selectable = true,
+			Size = o.Size, Position = o.Position or UDim2.new(), AnchorPoint = o.AnchorPoint or Vector2.zero, LayoutOrder = o.LayoutOrder or 0, ZIndex = 36,
+			Parent = o.Parent })
+		local scale = UIKit.new("UIScale", { Parent = button })
+		-- Halo qui respire derrière le bouton doré.
+		local glow
+		if gold then
+			glow = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(1, 26, 1, 26),
+				BackgroundColor3 = Color3.fromRGB(255, 200, 90), BackgroundTransparency = 0.8, ZIndex = 35, Parent = button })
+			UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = glow })
+		end
+		local bg = UIKit.new("Frame", { Name = "Background", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1), ClipsDescendants = true,
+			ZIndex = 36, Parent = button })
+		UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = bg })
+		if gold then
+			UIKit.gradient(bg, Color3.fromRGB(255, 222, 140), Color3.fromRGB(190, 112, 34), 90)
+			UIKit.stroke(bg, Color3.fromRGB(255, 240, 200), 2, 0.1)
+		else
+			UIKit.gradient(bg, Color3.fromRGB(46, 34, 72), Color3.fromRGB(16, 11, 28), 90)
+			UIKit.stroke(bg, GOLD, 1.5, 0.25)
+		end
+		-- Reflet supérieur.
+		local gloss = UIKit.new("Frame", { Position = UDim2.fromScale(0.04, 0.06), Size = UDim2.fromScale(0.92, 0.42), BackgroundColor3 = Color3.new(1, 1, 1),
+			BackgroundTransparency = gold and 0.55 or 0.88, ZIndex = 37, Parent = bg })
+		UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = gloss })
+		UIKit.new("UIGradient", { Rotation = 90, Transparency = NumberSequence.new(0.2, 1), Parent = gloss })
+		-- Éclat qui traverse le bouton.
+		local sweep = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(-0.2, 0.5), Size = UDim2.new(0, 46, 2, 0), Rotation = 20,
+			BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = gold and 0.45 or 0.8, BorderSizePixel = 0, ZIndex = 38, Parent = bg })
+		UIKit.new("UIGradient", { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0), NumberSequenceKeypoint.new(1, 1) }),
+			Parent = sweep })
+		local priceWidth = o.Price and 96 or 0
+		local text = UIKit.label({ Name = "Label", Text = o.Text, Font = UIKit.Fonts.Black, TextColor3 = gold and Color3.fromRGB(70, 32, 8) or CREAM,
+			AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 22, 0.5, 1), Size = UDim2.new(1, -44 - priceWidth, 0.5, 0), ZIndex = 39, Parent = button },
+			o.TextSize or 22)
+		if not gold then
+			UIKit.new("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1, Transparency = 0.5, Parent = text })
+		end
+		-- Pastille de prix : gemme dessinée + montant.
+		if o.Price then
+			local pill = UIKit.new("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.new(0, priceWidth, 1, -16),
+				BackgroundColor3 = Color3.fromRGB(40, 20, 8), BackgroundTransparency = 0.15, ZIndex = 39, Parent = button })
+			UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = pill })
+			local gemIcon = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0, 20, 0.5, 0), Size = UDim2.fromOffset(14, 14), Rotation = 45,
+				BackgroundColor3 = Color3.new(1, 1, 1), ZIndex = 40, Parent = pill })
+			UIKit.gradient(gemIcon, Color3.fromRGB(190, 240, 255), Color3.fromRGB(40, 120, 235), 45)
+			UIKit.stroke(gemIcon, Color3.fromRGB(230, 248, 255), 1, 0.2)
+			UIKit.label({ Text = tostring(o.Price), Font = UIKit.Fonts.Black, TextColor3 = Color3.fromRGB(200, 235, 255), TextXAlignment = Enum.TextXAlignment.Left,
+				Position = UDim2.fromOffset(34, 0), Size = UDim2.new(1, -40, 1, 0), ZIndex = 40, Parent = pill }, 20)
+		end
+		local hovered = false
+		local function hover(on: boolean)
+			hovered = on
+			UIKit.tween(scale, 0.18, { Scale = on and 1.05 or 1 }, Enum.EasingStyle.Back)
+			if on then
+				sweep.Position = UDim2.fromScale(-0.2, 0.5)
+				UIKit.tween(sweep, 0.5, { Position = UDim2.fromScale(1.2, 0.5) }, Enum.EasingStyle.Quad)
+			end
+		end
+		button.MouseEnter:Connect(function() hover(true) end)
+		button.MouseLeave:Connect(function() hover(false) end)
+		button.SelectionGained:Connect(function() hover(true) end)
+		button.SelectionLost:Connect(function() hover(false) end)
+		button.MouseButton1Down:Connect(function()
+			UIKit.tween(scale, 0.08, { Scale = 0.95 })
+		end)
+		button.Activated:Connect(function()
+			UIKit.tween(scale, 0.2, { Scale = hovered and 1.05 or 1 }, Enum.EasingStyle.Back)
+			UIKit.playSound("Click", 0.4)
+		end)
+		-- Le bouton doré respire et son éclat passe régulièrement.
+		if gold then
+			task.spawn(function()
+				while button.Parent do
+					if button.Visible and not hovered then
+						sweep.Position = UDim2.fromScale(-0.2, 0.5)
+						UIKit.tween(sweep, 0.7, { Position = UDim2.fromScale(1.2, 0.5) }, Enum.EasingStyle.Quad)
+					end
+					for _ = 1, 30 do
+						glow.BackgroundTransparency = 0.78 + math.sin(os.clock() * 3) * 0.08
+						task.wait(0.08)
+					end
+				end
+			end)
+		end
+		return button
+	end
+
+	-- Bas d'écran : un seul bandeau (mis à l'échelle) qui porte les boutons.
+	local PRICE = CardsData.Economy.BoosterPrice
+	local bottom = UIKit.new("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -28),
+		Size = UDim2.fromOffset(900, 130), ZIndex = 35, Parent = root })
+	-- Avant l'ouverture : gros bouton doré + rappel qu'on peut toucher le booster.
+	local hint = UIKit.new("Frame", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 35, Parent = bottom })
+	local openButton = fancyButton({ Text = "OUVRIR LE BOOSTER", Style = "Gold", Price = PRICE, Size = UDim2.fromOffset(400, 66), TextSize = 24,
+		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 20), Parent = hint })
+	local hintLabel = UIKit.label({ Text = "", Font = UIKit.Fonts.Bold, TextColor3 = MUTED, AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 94), Size = UDim2.fromOffset(400, 20), ZIndex = 35, Parent = hint }, 15)
+	-- Pendant la révélation : « tout révéler ».
+	local revealRow = UIKit.new("Frame", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Visible = false, ZIndex = 35, Parent = bottom })
+	UIKit.label({ Text = "Clique sur une carte pour la retourner", Font = UIKit.Fonts.Bold, TextColor3 = CREAM, AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 0), Size = UDim2.fromOffset(600, 24), ZIndex = 35, Parent = revealRow }, 20)
+	local revealAll = fancyButton({ Text = "TOUT RÉVÉLER", Style = "Ghost", Size = UDim2.fromOffset(260, 58), TextSize = 20,
+		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 40), Parent = revealRow })
+	-- À la fin : résumé + « ouvrir un autre » / « terminer ».
+	local endRow = UIKit.new("Frame", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Visible = false, ZIndex = 35, Parent = bottom })
+	local summary = UIKit.label({ Text = "", RichText = true, Font = UIKit.Fonts.Bold, TextColor3 = CREAM, AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 0), Size = UDim2.fromOffset(700, 24), ZIndex = 35, Parent = endRow }, 20)
+	local buttons = UIKit.new("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 40),
+		Size = UDim2.fromOffset(720, 64), ZIndex = 35, Parent = endRow })
+	UIKit.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center, Padding = UDim.new(0, 18),
+		SortOrder = Enum.SortOrder.LayoutOrder, Parent = buttons })
+	local again = fancyButton({ Text = "OUVRIR UN AUTRE", Style = "Gold", Price = PRICE, Size = UDim2.fromOffset(380, 64), TextSize = 22,
+		LayoutOrder = 1, Parent = buttons })
+	local done = fancyButton({ Text = "TERMINER", Style = "Ghost", Size = UDim2.fromOffset(210, 64), TextSize = 21, LayoutOrder = 2, Parent = buttons })
+	local poorLabel = UIKit.label({ Text = "", Font = UIKit.Fonts.Bold, TextColor3 = Color3.fromRGB(255, 120, 120), AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 108), Size = UDim2.fromOffset(600, 20), ZIndex = 35, Parent = endRow }, 16)
+	for _, inst in ipairs({ header, closeButton, oddsPanel, wallet, bottom }) do
 		UIKit.scaled(inst)
 	end
+
+	-- Scène des cartes révélées (2D, au-dessus du booster 3D).
+	local cardStage = UIKit.new("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(960, 520), ZIndex = 36, Parent = root })
+	UIKit.scaled(cardStage)
+	local screenFlash = UIKit.new("Frame", { BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 45, Parent = root })
 	-- Panneaux latéraux et halo visibles seulement avant l'ouverture.
 	local function setIdleChrome(visible: boolean)
 		for _, inst in ipairs({ oddsPanel, wallet, hint }) do
@@ -189,19 +300,6 @@ function BoosterMenu.new(parent: Instance, callbacks: Callbacks)
 		end
 		UIKit.tween(halo, 0.4, { BackgroundTransparency = visible and 0 or 1 })
 	end
-	RunService.RenderStepped:Connect(function()
-		if menu.IsOpen then
-			haloScale.Scale = 1 + math.sin(os.clock() * 1.4) * 0.03
-			cueScale.Scale = 1 + math.sin(os.clock() * 3) * 0.025
-		end
-	end)
-
-	function menu:SetProfile(profile)
-		if profile then
-			coinsLabel.Text = tostring(profile.Coins or 0) .. " ◆"
-		end
-	end
-
 	---------------------------------------------------------------------------
 	-- Modèle 3D et caméra
 	---------------------------------------------------------------------------
@@ -248,7 +346,8 @@ function BoosterMenu.new(parent: Instance, callbacks: Callbacks)
 		end
 		model:PivotTo(CFrame.Angles(0, yaw, 0))
 		local h = math.max(size.Y, 1)
-		local dist = h * (3.4 + pullBack * 1.1) * zoom
+		-- 4.3 : le booster reste bien entre le titre et le bouton.
+		local dist = h * (4.3 + pullBack * 1.1) * zoom
 		-- Visée légèrement au-dessus du centre : le booster est bien placé
 		-- entre le titre et le bouton.
 		local target = center + Vector3.new(0, h * (0.1 + 0.4 * pullBack), 0)
@@ -309,18 +408,34 @@ function BoosterMenu.new(parent: Instance, callbacks: Callbacks)
 		end)
 	end
 
-	---------------------------------------------------------------------------
-	-- Retournement des cartes 3D (comme dans le HTML)
-	---------------------------------------------------------------------------
-	local results, flipped, labels = {}, {}, {}
-	local canFlip = false
-	local function cardPoint(i: number): Vector3?
-		local p = rig and rig:bonePosition("carte_" .. i .. "_mesh")
-		if not p then
-			return nil
+	local coins = 0
+	function menu:SetProfile(profile)
+		if profile then
+			coins = profile.Coins or 0
+			coinsLabel.Text = tostring(coins) .. " ◆"
 		end
-		-- Centre de la carte : les os sont à sa base.
-		return p + Vector3.new(0, size.Y * 0.32, 0)
+	end
+
+	RunService.RenderStepped:Connect(function()
+		if menu.IsOpen then
+			haloScale.Scale = 1 + math.sin(os.clock() * 1.4) * 0.03
+		end
+	end)
+
+	---------------------------------------------------------------------------
+	-- Cartes révélées : elles jaillissent du booster, dos visible, et se
+	-- retournent au clic avec un effet selon la rareté.
+	---------------------------------------------------------------------------
+	local results, flipped, slots = {}, {}, {}
+	local canFlip = false
+	local CARD_W, CARD_H, GAP = 230, 336, 300
+
+	-- Sans contrainte de ratio, la carte peut s'aplatir pendant le retournement.
+	local function freeRatio(view: Instance)
+		local c = view:FindFirstChildOfClass("UIAspectRatioConstraint")
+		if c then
+			c:Destroy()
+		end
 	end
 	local function remaining(): number
 		local n = 0
@@ -331,77 +446,227 @@ function BoosterMenu.new(parent: Instance, callbacks: Callbacks)
 		end
 		return n
 	end
-	local function flipCard(i: number)
-		if not canFlip or flipped[i] or not results[i] then
-			return
-		end
-		flipped[i] = true
-		local result = results[i]
-		local card = result.card
-		local rarity = CardsData.RarityById[card.Rarity] or CardsData.Rarities[1]
-		local start = os.clock()
-		local conn
-		conn = RunService.RenderStepped:Connect(function()
-			local p = math.min((os.clock() - start) / FLIP_DUR, 1)
-			if rig then
-				rig:flip(i, p)
-			end
-			if p >= 1 then
-				conn:Disconnect()
-			end
-		end)
-		UIKit.playSound("Click", 0.5, 1.2)
-		task.delay(FLIP_DUR * 0.55, function()
-			local point = cardPoint(i)
-			local pos = point and project(point) or viewport.AbsoluteSize / 2
-			local color = CARD_COLORS[i] or GOLD
-			flashAt(pos, color, 260)
-			ring(pos, color, 320)
-			sparks(pos, { color, Color3.new(1, 1, 1), rarity.Color }, 40, 180)
-			UIKit.playSound("Reveal", 0.6, 0.8 + rarity.Order * 0.1)
-			if rarity.Order >= 4 then
-				callbacks.Shake(rarity.Order == 5 and 0.7 or 0.4, 0.4)
-			end
-			-- Étiquette de la créature obtenue, au-dessus de la carte.
-			local tag = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 1), Size = UDim2.fromOffset(220, 74), BackgroundColor3 = Color3.fromRGB(14, 10, 26),
-				BackgroundTransparency = 0.1, ZIndex = 37, Parent = fxLayer })
-			UIKit.corner(tag, 10)
-			UIKit.stroke(tag, rarity.Color, 2, 0)
-			UIKit.label({ Text = string.upper(card.Name), Font = Enum.Font.Merriweather, TextColor3 = Color3.fromRGB(255, 244, 220), Position = UDim2.fromOffset(8, 4),
-				Size = UDim2.new(1, -16, 0, 28), ZIndex = 38, Parent = tag }, 22)
-			UIKit.label({ Text = rarity.Label .. "  ·  " .. ((CardsData.Elements[card.Element] or {}).Label or card.Element), Font = UIKit.Fonts.Bold,
-				TextColor3 = rarity.Color, Position = UDim2.fromOffset(8, 32), Size = UDim2.new(1, -16, 0, 18), ZIndex = 38, Parent = tag }, 15)
-			UIKit.label({ Text = result.isNew and "NOUVELLE CRÉATURE !" or string.format("Doublon  ·  +%d ◆", result.refund or 0), Font = UIKit.Fonts.Black,
-				TextColor3 = result.isNew and GOLD or Color3.fromRGB(180, 170, 200), Position = UDim2.fromOffset(8, 52), Size = UDim2.new(1, -16, 0, 16), ZIndex = 38,
-				Parent = tag }, 13)
-			local scale = UIKit.new("UIScale", { Scale = 0.3, Parent = tag })
-			UIKit.tween(scale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
-			labels[i] = tag
-			if remaining() == 0 then
-				endRow.Visible = true
-				UIKit.focus(again)
-			end
-		end)
+	local function centerOf(gui: GuiObject): Vector2
+		return gui.AbsolutePosition + gui.AbsoluteSize / 2 - fxLayer.AbsolutePosition
 	end
-	-- Les étiquettes suivent les cartes à l'écran.
-	RunService.RenderStepped:Connect(function()
-		if not menu.IsOpen then
-			return
-		end
-		for i, tag in pairs(labels) do
-			local point = cardPoint(i)
-			local pos = point and project(point + Vector3.new(0, size.Y * 0.45, 0))
-			if pos then
-				tag.Position = UDim2.fromOffset(pos.X, pos.Y)
+
+	-- Rayons tournants derrière les cartes Rares et mieux.
+	RunService.RenderStepped:Connect(function(dt)
+		for _, s in pairs(slots) do
+			if s.Rays.Visible then
+				s.Rays.Rotation += dt * s.RaySpeed
 			end
 		end
 	end)
 
-	-- Souris / doigt : glisser pour tourner, clic sur une carte pour la retourner.
+	local showEnd
+	local function makeSlot(i: number, count: number)
+		local x = CARD_W * 0 + 480 + (i - (count + 1) / 2) * GAP
+		local slot = UIKit.new("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(480, 300),
+			Size = UDim2.fromOffset(CARD_W, CARD_H), ZIndex = 37, Parent = cardStage })
+		local pop = UIKit.new("UIScale", { Scale = 0.15, Parent = slot })
+		-- Halo de rareté (allumé au retournement).
+		local glow = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(1.9, 1.5),
+			BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 1, ZIndex = 37, Parent = slot })
+		UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = glow })
+		UIKit.new("UIGradient", { Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.3, 0.55),
+			NumberSequenceKeypoint.new(0.5, 0.35), NumberSequenceKeypoint.new(0.7, 0.55), NumberSequenceKeypoint.new(1, 1) }), Parent = glow })
+		local rays = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(10, 10),
+			BackgroundTransparency = 1, Visible = false, ZIndex = 37, Parent = slot })
+		for k = 1, 10 do
+			local ray = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(34, 640),
+				Rotation = k * 18, BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 37, Parent = rays })
+			UIKit.new("UIGradient", { Rotation = 90, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0.5),
+				NumberSequenceKeypoint.new(1, 1) }), Parent = ray })
+		end
+		-- Support du retournement (sa largeur passe à 0 puis revient).
+		local flip = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1, ZIndex = 38, Parent = slot })
+		local back = CardView.back({ Detailed = true, Size = UDim2.fromScale(1, 1), Parent = flip })
+		freeRatio(back)
+		-- Liseré qui pulse sur les cartes encore cachées.
+		local pulse = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(1.04, 1.03),
+			BackgroundTransparency = 1, ZIndex = 39, Parent = slot })
+		UIKit.corner(pulse, 12)
+		local pulseStroke = UIKit.stroke(pulse, GOLD, 3, 0.4)
+		-- Zone cliquable.
+		local hit = UIKit.new("TextButton", { Text = "", AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 50,
+			Selectable = true, Parent = slot })
+		local hover = UIKit.new("UIScale", { Parent = flip })
+		hit.MouseEnter:Connect(function()
+			if not flipped[i] then
+				UIKit.tween(hover, 0.15, { Scale = 1.05 }, Enum.EasingStyle.Back)
+			end
+		end)
+		hit.MouseLeave:Connect(function()
+			UIKit.tween(hover, 0.15, { Scale = 1 })
+		end)
+		-- Étiquette sous la carte.
+		local tag = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 14), Size = UDim2.fromOffset(270, 66),
+			BackgroundColor3 = Color3.fromRGB(14, 10, 26), BackgroundTransparency = 0.1, Visible = false, ZIndex = 40, Parent = slot })
+		UIKit.corner(tag, 10)
+		local tagStroke = UIKit.stroke(tag, GOLD, 2, 0)
+		local tagName = UIKit.label({ Text = "", Font = Enum.Font.Merriweather, TextColor3 = CREAM, Position = UDim2.fromOffset(8, 4), Size = UDim2.new(1, -16, 0, 26),
+			ZIndex = 41, Parent = tag }, 22)
+		local tagInfo = UIKit.label({ Text = "", RichText = true, Font = UIKit.Fonts.Bold, TextColor3 = CREAM, Position = UDim2.fromOffset(8, 34),
+			Size = UDim2.new(1, -16, 0, 24), ZIndex = 41, Parent = tag }, 16)
+		local s = { Slot = slot, Pop = pop, Glow = glow, Rays = rays, RaySpeed = 20, Flip = flip, Back = back, Pulse = pulse, PulseStroke = pulseStroke,
+			Hit = hit, Tag = tag, TagStroke = tagStroke, TagName = tagName, TagInfo = tagInfo, X = x }
+		slots[i] = s
+		return s
+	end
+
+	local function flipCard(i: number)
+		local s = slots[i]
+		local result = results[i]
+		if not canFlip or flipped[i] or not (s and result) then
+			return
+		end
+		flipped[i] = true
+		local card = result.card
+		local rarity = CardsData.RarityById[card.Rarity] or CardsData.Rarities[1]
+		local element = CardsData.Elements[card.Element] or CardsData.Elements.Feu
+		s.Pulse.Visible = false
+		-- Suspense : plus la carte est rare, plus elle tremble et s'illumine avant.
+		if rarity.Order >= 3 then
+			s.Glow.BackgroundColor3 = rarity.Color
+			UIKit.tween(s.Glow, 0.4, { BackgroundTransparency = 0.5 })
+			UIKit.playSound("Charge", 0.5, 0.9 + rarity.Order * 0.1)
+			for k = 1, 4 + rarity.Order * 2 do
+				s.Flip.Rotation = (k % 2 == 0 and 1 or -1) * (1 + k * 0.4)
+				task.wait(0.045)
+			end
+			s.Flip.Rotation = 0
+		end
+		UIKit.playSound("Swoosh", 0.5, 1.2)
+		UIKit.tween(s.Flip, 0.14, { Size = UDim2.fromScale(0, 1) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In).Completed:Wait()
+		if not menu.IsOpen then
+			return
+		end
+		s.Back:Destroy()
+		local front = CardView.create(card, { Detailed = true, Count = result.count, Size = UDim2.fromScale(1, 1), Parent = s.Flip })
+		freeRatio(front)
+		UIKit.tween(s.Flip, 0.26, { Size = UDim2.fromScale(1, 1) }, Enum.EasingStyle.Back)
+		-- Éclat à la couleur de la rareté.
+		local pos = centerOf(s.Slot)
+		s.Glow.BackgroundColor3 = rarity.Color
+		s.Glow.BackgroundTransparency = 0.05
+		UIKit.tween(s.Glow, 0.8, { BackgroundTransparency = rarity.Order >= 2 and 0.4 or 0.75 })
+		flashAt(pos, rarity.Color:Lerp(Color3.new(1, 1, 1), 0.4), 300 + rarity.Order * 60)
+		ring(pos, rarity.Color, 320 + rarity.Order * 80)
+		sparks(pos, { rarity.Color, element.Color, Color3.new(1, 1, 1) }, 20 + rarity.Order * 15, 160 + rarity.Order * 30)
+		if rarity.Order >= 3 then
+			for _, ray in ipairs(s.Rays:GetChildren()) do
+				if ray:IsA("Frame") then
+					ray.BackgroundColor3 = rarity.Color
+				end
+			end
+			s.Rays.Visible = true
+			s.RaySpeed = 15 + rarity.Order * 10
+		end
+		if rarity.Order >= 4 then
+			screenFlash.BackgroundColor3 = rarity.Color
+			screenFlash.BackgroundTransparency = rarity.Order == 5 and 0.1 or 0.4
+			UIKit.tween(screenFlash, 0.8, { BackgroundTransparency = 1 })
+			callbacks.Shake(rarity.Order == 5 and 0.9 or 0.5, 0.5)
+		end
+		UIKit.playSound("Reveal", 0.6, 0.8 + rarity.Order * 0.1)
+		s.Pop.Scale = 1.12
+		UIKit.tween(s.Pop, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
+		-- Étiquette : nom, rareté, nouveau ou doublon.
+		s.TagStroke.Color = rarity.Color
+		s.TagName.Text = string.upper(card.Name)
+		s.TagInfo.Text = string.format('<font color="#%s">%s</font> · <font color="#%s">%s</font>   %s', rarity.Color:ToHex(), rarity.Label, element.Color:ToHex(),
+			element.Label, result.isNew and '<font color="#FFD778">★ NOUVEAU !</font>' or string.format('<font color="#B4AAC8">doublon +%d ◆</font>', result.refund or 0))
+		-- (Étiquette sous la carte désactivée : la carte suffit, le résumé dit le reste.)
+		if remaining() == 0 then
+			task.delay(0.4, showEnd)
+		end
+	end
+
+	showEnd = function()
+		if not menu.IsOpen or remaining() > 0 then
+			return
+		end
+		local newCount, best = 0, CardsData.Rarities[1]
+		for _, r in ipairs(results) do
+			if r.isNew then
+				newCount += 1
+			end
+			local rar = CardsData.RarityById[r.card.Rarity]
+			if rar and rar.Order > best.Order then
+				best = rar
+			end
+		end
+		summary.Text = string.format('%d créatures · <font color="#FFD778">%d nouvelle%s</font> · meilleure : <font color="#%s">%s</font>', #results, newCount,
+			newCount > 1 and "s" or "", best.Color:ToHex(), best.Label)
+		revealRow.Visible = false
+		endRow.Visible = true
+		local poor = coins < PRICE
+		UIKit.setDimmed(again, poor)
+		poorLabel.Text = poor and string.format("Il te faut %d ◆ (tu en as %d)", PRICE, coins) or ""
+		UIKit.focus(poor and done or again)
+	end
+
+	local function revealEverything()
+		for i = 1, #results do
+			if not flipped[i] and menu.IsOpen then
+				task.spawn(flipCard, i)
+				task.wait(0.3)
+			end
+		end
+	end
+
+	local function clearSlots()
+		for _, s in pairs(slots) do
+			s.Slot:Destroy()
+		end
+		slots, results, flipped = {}, {}, {}
+		canFlip = false
+	end
+
+	-- Les cartes sortent du booster et se placent en éventail.
+	local function dealCards()
+		local count = #results
+		for i = 1, count do
+			local s = makeSlot(i, count)
+			s.Hit.Activated:Connect(function()
+				task.spawn(flipCard, i)
+			end)
+			s.Slot.Rotation = 0
+			UIKit.tween(s.Slot, 0.55, { Position = UDim2.fromOffset(s.X, 250) }, Enum.EasingStyle.Back)
+			UIKit.tween(s.Pop, 0.5, { Scale = 1 }, Enum.EasingStyle.Back)
+			UIKit.playSound("Swoosh", 0.4, 1 + i * 0.1)
+			task.wait(0.14)
+		end
+		task.wait(0.4)
+		canFlip = true
+		revealRow.Visible = true
+		if slots[1] then
+			UIKit.focus(slots[1].Hit)
+		end
+	end
+
+	-- Liseré des cartes cachées qui respire.
+	RunService.RenderStepped:Connect(function()
+		if not canFlip then
+			return
+		end
+		local t = os.clock()
+		for i, s in pairs(slots) do
+			if not flipped[i] then
+				s.PulseStroke.Transparency = 0.35 + math.sin(t * 4 + i) * 0.3
+			end
+		end
+	end)
+
+	---------------------------------------------------------------------------
+	-- Souris / doigt : glisser pour tourner le booster, toucher pour l'ouvrir.
+	---------------------------------------------------------------------------
 	local last, downAt = nil, nil
 	viewport.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			dragging, last, downAt = false, input.Position, input.Position
+			dragging, last, downAt = true, input.Position, input.Position
 		end
 	end)
 	UserInputService.InputChanged:Connect(function(input)
@@ -419,49 +684,31 @@ function BoosterMenu.new(parent: Instance, callbacks: Callbacks)
 	UserInputService.InputEnded:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = false
-			-- Clic sur le booster encore fermé : on l'ouvre.
-			if menu.IsOpen and not busy and not canFlip and #results == 0 and downAt then
+			-- Un toucher bref (sans glisser) sur le booster fermé l'ouvre.
+			if menu.IsOpen and not busy and #results == 0 and downAt
+				and (Vector2.new(input.Position.X, input.Position.Y) - Vector2.new(downAt.X, downAt.Y)).Magnitude < 8 then
 				task.spawn(menu.OpenPack)
-				downAt = nil
-				return
-			end
-			-- Un clic bref (sans glisser) sur une carte la retourne.
-			if canFlip and downAt and (Vector2.new(input.Position.X, input.Position.Y) - Vector2.new(downAt.X, downAt.Y)).Magnitude < 8 then
-				-- Position de la souris (sous la barre Roblox) ramenée au repère de l'interface plein écran.
-				local click = Vector2.new(input.Position.X, input.Position.Y) + GuiService:GetGuiInset() - viewport.AbsolutePosition
-				local best, bestDist = nil, viewport.AbsoluteSize.Y * 0.14
-				for i = 1, #results do
-					local point = cardPoint(i)
-					local pos = point and project(point)
-					if pos and not flipped[i] and (pos - click).Magnitude < bestDist then
-						best, bestDist = i, (pos - click).Magnitude
-					end
-				end
-				if best then
-					flipCard(best)
-				end
 			end
 			downAt = nil
 		end
 	end)
-	-- Manette / clavier : le bouton d'action retourne la carte suivante.
+	-- Manette / clavier : A / Espace ouvre puis retourne la carte suivante ; X révèle tout.
 	UserInputService.InputBegan:Connect(function(input, processed)
 		if not menu.IsOpen or processed then
 			return
 		end
-		if not canFlip then
-			if not busy and #results == 0 and (input.KeyCode == Enum.KeyCode.ButtonA or input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.Return) then
-				task.spawn(menu.OpenPack)
-			end
-			return
-		end
-		if input.KeyCode == Enum.KeyCode.ButtonA or input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.Return then
+		local action = input.KeyCode == Enum.KeyCode.ButtonA or input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.Return
+		if action and not busy and #results == 0 then
+			task.spawn(menu.OpenPack)
+		elseif action and canFlip then
 			for i = 1, #results do
 				if not flipped[i] then
-					flipCard(i)
+					task.spawn(flipCard, i)
 					break
 				end
 			end
+		elseif input.KeyCode == Enum.KeyCode.ButtonX and canFlip then
+			task.spawn(revealEverything)
 		end
 	end)
 
@@ -475,15 +722,16 @@ function BoosterMenu.new(parent: Instance, callbacks: Callbacks)
 			rig:rest(0)
 		end
 		setCardsVisible(false)
-		for _, tag in pairs(labels) do
-			tag:Destroy()
-		end
-		labels, results, flipped = {}, {}, {}
-		canFlip = false
+		clearSlots()
+		viewport.ImageTransparency = 0
+		hint.Visible = true
+		revealRow.Visible = false
 		endRow.Visible = false
-		openButton.Visible = true
+		poorLabel.Text = ""
 		closeButton.Visible = true
 		setIdleChrome(true)
+		hintLabel.Text = coins < PRICE and string.format("Il te faut %d ◆ (tu en as %d)", PRICE, coins) or ""
+		UIKit.setDimmed(openButton, coins < PRICE)
 	end
 
 	local function open()
@@ -497,69 +745,101 @@ function BoosterMenu.new(parent: Instance, callbacks: Callbacks)
 			return
 		end
 		results = result.results or {}
-		openButton.Visible = false
+		hint.Visible = false
 		-- Plus de croix une fois le booster ouvert : « TERMINER » prend le relais.
 		closeButton.Visible = false
 		setIdleChrome(false)
-		if not (buildModel() and rig) then
-			busy = false
-			return
-		end
-		-- Retour de face, puis animation « Ouverture » du fichier.
-		local startYaw = yaw
-		local targetYaw = FRONT + math.round((startYaw - FRONT) / (math.pi * 2)) * math.pi * 2
-		local turnStart = os.clock()
-		while os.clock() - turnStart < 0.4 do
-			yaw = startYaw + (targetYaw - startYaw) * ((os.clock() - turnStart) / 0.4)
-			task.wait()
-		end
-		yaw, pitch = targetYaw, 0.06
-		setCardsVisible(true)
-		local start = os.clock()
-		local tore, fanned = false, false
-		while menu.IsOpen do
-			local t = os.clock() - start
-			rig:pose(math.min(t, OPEN_DUR))
-			local k = math.clamp((t - 0.9) / 1.0, 0, 1)
-			pullBack = k * k * (3 - 2 * k)
-			if not tore and t >= T_TEAR then
-				tore = true
-				local top = rig:bonePosition("haut")
-				local pos = top and project(top) or viewport.AbsoluteSize / 2
-				flashAt(pos, Color3.fromRGB(255, 225, 160), 300)
-				sparks(pos, { Color3.fromRGB(255, 217, 115), Color3.fromRGB(255, 153, 64), Color3.fromRGB(128, 217, 255), Color3.fromRGB(217, 179, 255) }, 50, 220)
-				UIKit.playSound("Reveal", 0.5, 1.4)
+		if buildModel() and rig then
+			-- Retour de face, puis le sachet se déchire.
+			local startYaw = yaw
+			local targetYaw = FRONT + math.round((startYaw - FRONT) / (math.pi * 2)) * math.pi * 2
+			local turnStart = os.clock()
+			while os.clock() - turnStart < 0.3 do
+				yaw = startYaw + (targetYaw - startYaw) * ((os.clock() - turnStart) / 0.3)
+				task.wait()
 			end
-			if not fanned and t >= T_FAN - 0.25 then
-				fanned = true
-				local point = cardPoint(1)
-				local pos = point and project(point) or viewport.AbsoluteSize / 2
-				flashAt(pos, Color3.fromRGB(255, 240, 200), 520)
-				sparks(pos, { Color3.fromRGB(255, 217, 115), Color3.fromRGB(128, 217, 255), Color3.fromRGB(217, 179, 255) }, 60, 360)
-				callbacks.Shake(0.3, 0.3)
+			yaw, pitch = targetYaw, 0.06
+			UIKit.playSound("Charge", 0.5, 1)
+			local start = os.clock()
+			local tore = false
+			local stop = T_TEAR + 0.45
+			while menu.IsOpen do
+				local t = os.clock() - start
+				rig:pose(math.min(t, stop))
+				-- Le sachet tremble de plus en plus avant de se déchirer.
+				if t < T_TEAR then
+					yaw = targetYaw + math.sin(t * 60) * 0.04 * (t / T_TEAR)
+				else
+					yaw = targetYaw
+				end
+				if not tore and t >= T_TEAR then
+					tore = true
+					local top = rig:bonePosition("haut")
+					local pos = top and project(top) or viewport.AbsoluteSize / 2
+					flashAt(pos, Color3.fromRGB(255, 225, 160), 360)
+					sparks(pos, { Color3.fromRGB(255, 217, 115), Color3.fromRGB(255, 153, 64), Color3.fromRGB(128, 217, 255), Color3.fromRGB(217, 179, 255) }, 60, 260)
+					UIKit.playSound("Reveal", 0.5, 1.4)
+					callbacks.Shake(0.3, 0.3)
+				end
+				if t >= stop then
+					break
+				end
+				task.wait()
 			end
-			if t >= OPEN_DUR then
-				break
-			end
-			task.wait()
+			-- Le booster s'efface, les cartes prennent le relais.
+			UIKit.tween(viewport, 0.3, { ImageTransparency = 1 })
+			flashAt(viewport.AbsoluteSize / 2, Color3.fromRGB(255, 240, 200), 600)
 		end
-		canFlip = true
+		if menu.IsOpen then
+			dealCards()
+		end
 		busy = false
 	end
 	menu.OpenPack = open
 	openButton.Activated:Connect(function()
+		if coins < PRICE then
+			callbacks.Shake(0.1, 0.15)
+			return
+		end
 		task.spawn(open)
 	end)
+	revealAll.Activated:Connect(function()
+		if canFlip then
+			task.spawn(revealEverything)
+		end
+	end)
 	again.Activated:Connect(function()
+		if busy then
+			return
+		end
+		if coins < PRICE then
+			poorLabel.Text = string.format("Pas assez de gemmes : il te faut %d ◆ (tu en as %d)", PRICE, coins)
+			callbacks.Shake(0.1, 0.15)
+			return
+		end
 		resetView()
 		task.spawn(open)
 	end)
+	done.Activated:Connect(function()
+		menu:Close()
+	end)
+
+	-- Personnage immobile pendant l'ouverture (rétabli à la fermeture).
+	local Freeze = require(script.Parent:WaitForChild("Freeze"))
+	local function freezePlayer(on: boolean)
+		if on then
+			Freeze.hold("Booster")
+		else
+			Freeze.release("Booster")
+		end
+	end
 
 	function menu:Open()
 		if self.IsOpen then
 			return
 		end
 		self.IsOpen = true
+		freezePlayer(true)
 		buildModel()
 		resetView()
 		root.Visible = true
@@ -576,10 +856,13 @@ function BoosterMenu.new(parent: Instance, callbacks: Callbacks)
 			return
 		end
 		self.IsOpen = false
-		-- Les cartes déjà tirées sont acquises : on révèle tout si on ferme tôt.
+		freezePlayer(false)
 		UIKit.tween(root, 0.25, { BackgroundTransparency = 1 })
 		UIKit.tween(vignette, 0.25, { BackgroundTransparency = 1 })
 		UIKit.tween(halo, 0.25, { BackgroundTransparency = 1 })
+		for _, s in pairs(slots) do
+			s.Slot.Visible = false
+		end
 		UIKit.tween(viewport, 0.2, { ImageTransparency = 1 }).Completed:Once(function()
 			if not self.IsOpen then
 				root.Visible = false

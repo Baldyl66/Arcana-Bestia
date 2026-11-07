@@ -123,8 +123,103 @@ local function base(options: Options?): (Frame, boolean)
 	return frame, detailed
 end
 
+-- Pastille d'exemplaires et reflet des cartes Épiques et Légendaires.
+function CardView.decorate(frame: Frame, card, opts: Options)
+	local owned = opts.Owned ~= false
+	local detailed = opts.Detailed == true
+	local rarity = CardsData.RarityById[card.Rarity] or CardsData.Rarities[1]
+	-- Pastille discrète du nombre d'exemplaires, dans le coin du bandeau titre.
+	if owned and (opts.Count or 0) > 1 then
+		local badge = frameIn(frame, { Name = "CountBadge", AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(0.95, 0.03), Size = UDim2.fromScale(0.16, 0.055),
+			BackgroundColor3 = GOLD, ZIndex = 6 })
+		UIKit.corner(badge, 20)
+		UIKit.label({ Text = "x" .. opts.Count, Font = UIKit.Fonts.Black, TextColor3 = Color3.fromRGB(45, 25, 5), Size = UDim2.fromScale(1, 0.9),
+			Position = UDim2.fromScale(0, 0.05), ZIndex = 7, Parent = badge }, detailed and 14 or 9)
+	end
+
+	-- Reflet qui balaie les cartes Épiques et Légendaires.
+	if owned and rarity.Order >= 4 then
+		local shine = frameIn(frame, { Name = "Shine", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1), ZIndex = 5 })
+		UIKit.corner(shine, detailed and 10 or 6)
+		local gradient = UIKit.new("UIGradient", {
+			Rotation = 25,
+			Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.45, 1), NumberSequenceKeypoint.new(0.5, 0.7),
+				NumberSequenceKeypoint.new(0.55, 1), NumberSequenceKeypoint.new(1, 1) }),
+			Offset = Vector2.new(-1, 0),
+			Parent = shine,
+		})
+		task.spawn(function()
+			while frame.Parent do
+				gradient.Offset = Vector2.new(-1, 0)
+				UIKit.tween(gradient, 1.4, { Offset = Vector2.new(1, 0) }, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut).Completed:Wait()
+				task.wait(1.6)
+			end
+		end)
+	end
+end
+
+-- Badge de rareté : pastille arrondie colorée avec le libellé (« RARE »).
+local function rarityBadge(parent: Instance, rarity, owned: boolean, pos: UDim2, height: number, detailed: boolean)
+	local color = owned and rarity.Color or Color3.fromRGB(90, 86, 110)
+	local badge = frameIn(parent, { Name = "RarityBadge", AnchorPoint = Vector2.new(0.5, 0.5), Position = pos, Size = UDim2.fromScale(0.5, height),
+		BackgroundColor3 = color:Lerp(Color3.new(0, 0, 0), 0.55), BackgroundTransparency = 0.05, ZIndex = 5 })
+	UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = badge })
+	UIKit.stroke(badge, color, detailed and 2 or 1, 0)
+	UIKit.new("UIGradient", { Rotation = 90, Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(190, 190, 190)), Parent = badge })
+	local text = UIKit.label({ Text = owned and string.upper(rarity.Label) or "???", Font = UIKit.Fonts.Black, TextColor3 = color:Lerp(Color3.new(1, 1, 1), 0.55),
+		Position = UDim2.fromScale(0.06, 0.12), Size = UDim2.fromScale(0.88, 0.76), ZIndex = 6, Parent = badge }, detailed and 16 or 8)
+	UIKit.new("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1, Transparency = 0.4, Parent = text })
+	return badge
+end
+
+-- Carte « pleine image » : l'illustration (avec son propre décor) remplit la
+-- carte, seul le nom est affiché, sur un dégradé sombre en bas.
+local function fullArt(card, opts: Options): Frame
+	local owned = opts.Owned ~= false
+	local rarity = CardsData.RarityById[card.Rarity] or CardsData.Rarities[1]
+	local frame, detailed = base(opts)
+	frame.Name = card.Id
+	frame.BackgroundColor3 = NIGHT
+	UIKit.stroke(frame, GOLD, detailed and 6 or 3, 0)
+
+	local art = UIKit.new("ImageLabel", { Name = "Illustration", Image = card.Image, ScaleType = Enum.ScaleType.Crop, BackgroundColor3 = NIGHT,
+		Position = UDim2.fromScale(0.03, 0.02), Size = UDim2.fromScale(0.94, 0.96), ImageColor3 = owned and Color3.new(1, 1, 1) or Color3.fromRGB(18, 14, 30),
+		ZIndex = 2, Parent = frame })
+	UIKit.corner(art, detailed and 8 or 4)
+	-- Liseré intérieur à la couleur de la rareté.
+	UIKit.stroke(art, owned and rarity.Color or Color3.fromRGB(70, 68, 85), detailed and 2 or 1, 0)
+
+	-- Dégradé sombre en bas pour lire le nom.
+	local shade = frameIn(art, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.fromScale(1, 0.32),
+		BackgroundColor3 = Color3.new(0, 0, 0), ZIndex = 3 })
+	UIKit.corner(shade, detailed and 8 or 4)
+	UIKit.new("UIGradient", { Rotation = 90, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0.35),
+		NumberSequenceKeypoint.new(1, 0.1) }), Parent = shade })
+
+	local name = UIKit.label({ Name = "CardName", Text = owned and string.upper(card.Name) or "???", Font = SERIF, TextColor3 = GOLD_L,
+		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 0.835), Size = UDim2.fromScale(0.88, 0.1), ZIndex = 4, Parent = art },
+		detailed and 40 or 18)
+	UIKit.new("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = detailed and 2 or 1, Transparency = 0.2, Parent = name })
+	-- Élément sous le nom, puis badge de rareté.
+	local element = CardsData.Elements[card.Element] or CardsData.Elements.Feu
+	local elementLabel = UIKit.label({ Name = "Element", Text = owned and element.Label or "", Font = SERIF,
+		TextColor3 = element.Color:Lerp(Color3.new(1, 1, 1), 0.35), AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.838),
+		Size = UDim2.fromScale(0.7, 0.045), ZIndex = 4, Parent = art }, detailed and 20 or 9)
+	UIKit.new("UIStroke", { Color = Color3.new(0, 0, 0), Thickness = 1, Transparency = 0.3, Parent = elementLabel })
+	rarityBadge(art, rarity, owned, UDim2.fromScale(0.5, 0.932), 0.05, detailed)
+	if not owned then
+		UIKit.label({ Text = "?", Font = SERIF, TextColor3 = Color3.fromRGB(160, 155, 180), Size = UDim2.fromScale(1, 0.8), ZIndex = 4, Parent = art }, 90)
+	end
+	return frame
+end
+
 function CardView.create(card, options: Options?): Frame
 	local opts = options or {}
+	if card.Image then
+		local frame = fullArt(card, opts)
+		CardView.decorate(frame, card, opts)
+		return frame
+	end
 	local owned = opts.Owned ~= false
 	local element = CardsData.Elements[card.Element] or CardsData.Elements.Feu
 	local rarity = CardsData.RarityById[card.Rarity] or CardsData.Rarities[1]
@@ -133,7 +228,6 @@ function CardView.create(card, options: Options?): Frame
 	local main = owned and element.Color or Color3.fromRGB(70, 68, 85)
 	local dark = owned and element.Dark or Color3.fromRGB(22, 20, 30)
 	local light = owned and (LIGHT[card.Element] or Color3.new(1, 1, 1)) or Color3.fromRGB(120, 116, 140)
-	local thick = detailed and 3 or 1.5
 
 	UIKit.gradient(frame, dark, NIGHT, 90)
 	UIKit.stroke(frame, GOLD, detailed and 6 or 3, 0)
@@ -179,51 +273,15 @@ function CardView.create(card, options: Options?): Frame
 		UIKit.label({ Text = "?", Font = SERIF, TextColor3 = Color3.fromRGB(160, 155, 180), Size = UDim2.fromScale(1, 1), ZIndex = 4, Parent = art }, 80)
 	end
 
-	-- Panneau du bas : gemmes de rareté, élément, statistiques.
+	-- Panneau du bas : badge de rareté et élément.
 	local panel = frameIn(frame, { Position = UDim2.fromScale(0.086, 0.722), Size = UDim2.fromScale(0.828, 0.2), BackgroundColor3 = Color3.new(0, 0, 0),
 		BackgroundTransparency = 0.6, ZIndex = 2 })
 	UIKit.stroke(panel, GOLD, 1, 0)
-	for k = 1, rarity.Order do
-		diamond(panel, UDim2.fromScale(0.5 + (k - (rarity.Order + 1) / 2) * 0.09, 0.2), UDim2.fromScale(0.06, 0.06), owned and rarity.Color or main, 3)
-	end
-	UIKit.label({ Name = "Rarity", Text = owned and ("Arcana · " .. rarity.Label .. " · " .. element.Label) or "Non découverte", Font = Enum.Font.Merriweather,
-		TextColor3 = GOLD_L, Position = UDim2.fromScale(0.04, 0.36), Size = UDim2.fromScale(0.92, 0.26), ZIndex = 3, Parent = panel }, detailed and 20 or 11)
-	segment(panel, Vector2.new(0.22, 0.68), Vector2.new(0.78, 0.68), 1, main, 3)
-	if owned then
-		UIKit.label({ Name = "Stats", Text = string.format("PV %d   ·   ATQ %d", card.HP, card.Attack), Font = UIKit.Fonts.Bold, TextColor3 = Color3.fromRGB(255, 244, 220),
-			Position = UDim2.fromScale(0.04, 0.72), Size = UDim2.fromScale(0.92, 0.24), ZIndex = 3, Parent = panel }, detailed and 20 or 11)
-	end
-	if detailed and owned and card.Description then
-		UIKit.label({ Name = "Description", Text = card.Description, Font = Enum.Font.Merriweather, TextColor3 = Color3.fromRGB(225, 215, 195),
-			Position = UDim2.fromScale(0.08, 0.93), Size = UDim2.fromScale(0.84, 0.055), ZIndex = 3, Parent = frame }, 13)
-	end
-
-	if owned and (opts.Count or 0) > 1 then
-		local badge = frameIn(frame, { Name = "CountBadge", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 4, 0, -4), Size = UDim2.fromScale(0.3, 0.12),
-			BackgroundColor3 = GOLD, ZIndex = 6 })
-		UIKit.corner(badge, 20)
-		UIKit.label({ Text = "x" .. opts.Count, Font = UIKit.Fonts.Black, TextColor3 = Color3.fromRGB(45, 25, 5), Size = UDim2.fromScale(1, 1), ZIndex = 7, Parent = badge }, 16)
-	end
-
-	-- Reflet qui balaie les cartes Épiques et Légendaires.
-	if owned and rarity.Order >= 4 then
-		local shine = frameIn(frame, { Name = "Shine", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1), ZIndex = 5 })
-		UIKit.corner(shine, detailed and 10 or 6)
-		local gradient = UIKit.new("UIGradient", {
-			Rotation = 25,
-			Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.45, 1), NumberSequenceKeypoint.new(0.5, 0.7),
-				NumberSequenceKeypoint.new(0.55, 1), NumberSequenceKeypoint.new(1, 1) }),
-			Offset = Vector2.new(-1, 0),
-			Parent = shine,
-		})
-		task.spawn(function()
-			while frame.Parent do
-				gradient.Offset = Vector2.new(-1, 0)
-				UIKit.tween(gradient, 1.4, { Offset = Vector2.new(1, 0) }, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut).Completed:Wait()
-				task.wait(1.6)
-			end
-		end)
-	end
+	UIKit.label({ Name = "Element", Text = owned and element.Label or "Non découverte", Font = Enum.Font.Merriweather,
+		TextColor3 = owned and element.Color:Lerp(Color3.new(1, 1, 1), 0.35) or GOLD_L, Position = UDim2.fromScale(0.04, 0.08), Size = UDim2.fromScale(0.92, 0.32),
+		ZIndex = 3, Parent = panel }, detailed and 22 or 11)
+	rarityBadge(panel, rarity, owned, UDim2.fromScale(0.5, 0.68), 0.34, detailed)
+	CardView.decorate(frame, card, opts)
 	return frame
 end
 
@@ -281,7 +339,7 @@ function CardView.back(options: Options?): Frame
 		UIKit.new("UIAspectRatioConstraint", { AspectRatio = 1, Parent = dot })
 	end
 	segment(frame, Vector2.new(0.23, 0.8), Vector2.new(0.77, 0.8), 1, GOLD, 3)
-	UIKit.label({ Text = "✦  ELEMENTA  ✦", Font = Enum.Font.Merriweather, TextColor3 = Color3.fromRGB(232, 197, 108), Position = UDim2.fromScale(0.1, 0.82),
+	UIKit.label({ Text = "★  ELEMENTA  ★", Font = Enum.Font.Merriweather, TextColor3 = Color3.fromRGB(232, 197, 108), Position = UDim2.fromScale(0.1, 0.82),
 		Size = UDim2.fromScale(0.8, 0.05), ZIndex = 3, Parent = frame }, detailed and 20 or 10)
 	segment(frame, Vector2.new(0.29, 0.877), Vector2.new(0.71, 0.877), 1, GOLD, 3)
 	for _, p in ipairs({ { 0.5, 0.048 }, { 0.5, 0.952 }, { 0.07, 0.5 }, { 0.93, 0.5 } }) do

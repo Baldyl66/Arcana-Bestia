@@ -2275,10 +2275,10 @@ local npcSpots = {
 	Varek = (function()
 		local c = L.Colosseum
 		local gate = math.rad(L.ColosseumGate)
-		-- Au bord du Cercle des Arcanes, à côté de l'allée d'entrée.
-		local a = gate + math.rad(16)
-		local pos = Vector3.new(c.X, L.Ground + 0.5, c.Y) + Vector3.new(math.cos(a), 0, math.sin(a)) * 52
+		-- Dans l'axe de l'entrée, en haut de l'escalier : face au joueur qui
+		-- arrive, hors de la zone de combat (duellistes à 20 studs du centre).
 		local outward = Vector3.new(math.cos(gate), 0, math.sin(gate))
+		local pos = Vector3.new(c.X, L.Ground + 3.5, c.Y) + outward * 44
 		return CFrame.lookAt(pos, pos + outward)
 	end)(),
 }
@@ -2375,7 +2375,6 @@ local routes = {
 	Lina = loop(ringRoute(L.Fountain, 47, 12)),
 	Tobias = loop({ Vector2.new(-140, -222), Vector2.new(-320, -222), Vector2.new(-320, -221), Vector2.new(-140, -221) }),
 	Mira = loop(ringRoute(Vector2.zero, 100, 14)),
-	Joran = loop({ Vector2.new(116, 3), Vector2.new(158, 3), Vector2.new(158, -3), Vector2.new(116, -3) }),
 	Nell = loop({ Vector2.new(-318, 161), Vector2.new(-142, 161), Vector2.new(-142, 162), Vector2.new(-318, 162) }),
 	Bram = loop({ Vector2.new(140, -222), Vector2.new(320, -222), Vector2.new(320, -221), Vector2.new(140, -221) }),
 	Elise = loop({ Vector2.new(-318, 191), Vector2.new(-140, 191), Vector2.new(-140, 192), Vector2.new(-318, 192) }),

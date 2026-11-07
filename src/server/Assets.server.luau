@@ -1,5 +1,5 @@
 -- Rend visibles par les joueurs les modèles 3D importés dans ServerStorage
--- qui sont affichés côté client (booster), avec leurs animations importées.
+-- qui sont affichés côté client (booster, Anima), avec leurs animations importées.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
@@ -58,5 +58,51 @@ for _, name in ipairs(CLIENT_MODELS) do
 			end
 		end
 		print(string.format("[Assets] %s : %d animation(s) jointe(s) %s", name, #names, table.concat(names, ", ")))
+	end
+end
+
+-- Anima 3D (modèles Claude Design, ex. « flamichat ») : rangés dans ReplicatedStorage.Animas
+-- ou ServerStorage.Animas. Leurs clips s'appellent « <id>_<Clip> » (flamichat_Repos…) :
+-- l'import de Studio les met dans RBX_ANIMSAVES, côté serveur, on les joint au modèle
+-- pour que Arena3D (client) puisse les jouer.
+local function copyAnimaSequences(target: Model)
+	local saves = ServerStorage:FindFirstChild("RBX_ANIMSAVES")
+	if not saves then
+		return
+	end
+	local prefix = string.lower(target.Name) .. "_"
+	for _, d in ipairs(saves:GetDescendants()) do
+		if d:IsA("KeyframeSequence") and string.find(string.lower(d.Name), prefix, 1, true) then
+			d:Clone().Parent = target
+		end
+	end
+end
+
+local animas = ReplicatedStorage:FindFirstChild("Animas")
+local serverAnimas = ServerStorage:FindFirstChild("Animas")
+if serverAnimas then
+	if not animas then
+		animas = Instance.new("Folder")
+		animas.Name = "Animas"
+		animas.Parent = ReplicatedStorage
+	end
+	for _, m in ipairs(serverAnimas:GetChildren()) do
+		if not animas:FindFirstChild(m.Name) then
+			m:Clone().Parent = animas
+		end
+	end
+end
+for _, m in ipairs(animas and animas:GetChildren() or {}) do
+	if m:IsA("Model") then
+		if not hasSequences(m) then
+			copyAnimaSequences(m)
+		end
+		local names = {}
+		for _, d in ipairs(m:GetDescendants()) do
+			if d:IsA("KeyframeSequence") then
+				table.insert(names, d.Name)
+			end
+		end
+		print(string.format("[Assets] Anima %s : %d animation(s) %s", m.Name, #names, table.concat(names, ", ")))
 	end
 end

@@ -38,6 +38,7 @@ export type Profile = {
 	StallBought: { [string]: boolean },
 	SetsClaimed: { [string]: boolean },
 	FarmDay: number,
+	XP: { [string]: number },
 }
 
 local DataService = {}
@@ -70,6 +71,9 @@ local profiles: { [Player]: Profile } = {}
 local canSave: { [Player]: boolean } = {}
 local dirty: { [Player]: boolean } = {}
 local saving: { [Player]: boolean } = {}
+-- Sauvegardes de départ encore en cours, par UserId : un joueur qui revient
+-- vite sur ce même serveur attend qu'elles soient écrites avant de recharger.
+local leaving: { [number]: number } = {}
 local changedEvent = Instance.new("BindableEvent")
 DataService.Changed = changedEvent.Event
 
@@ -111,6 +115,7 @@ local function defaultProfile(): Profile
 		StallBought = {},
 		SetsClaimed = {},
 		FarmDay = 0,
+		XP = {},
 	}
 end
 
@@ -132,6 +137,15 @@ local function reconcile(data: any): Profile
 		end
 	end
 	profile.Cards = cards
+	-- Expérience : seulement pour les créatures possédées, valeurs bornées.
+	local xp = {}
+	local maxXP = CardsData.xpForLevel(CardsData.Progression.MaxLevel)
+	for id, value in pairs(profile.XP) do
+		if cards[id] and type(value) == "number" and value > 0 then
+			xp[id] = math.clamp(math.floor(value), 0, maxXP)
+		end
+	end
+	profile.XP = xp
 	profile.Coins = math.clamp(math.floor(profile.Coins), 0, MAX_COINS)
 	return profile
 end
@@ -151,7 +165,29 @@ local function lockFree(lock: any): boolean
 	return type(lock) ~= "table" or lock.Session == SESSION or os.time() - (tonumber(lock.Time) or 0) > LOCK_TTL
 end
 
+-- Libère le verrou d'un profil lu mais jamais utilisé (joueur parti pendant
+-- le chargement), pour qu'il puisse se reconnecter tout de suite ailleurs.
+local function releaseLock(userId: number)
+	if not store then
+		return
+	end
+	pcall(function()
+		store:UpdateAsync("player_" .. userId, function(stored)
+			local profile, lock = unwrap(stored)
+			if type(lock) == "table" and lock.Session == SESSION and profile then
+				return { Version = FORMAT_VERSION, Profile = profile, Lock = nil }
+			end
+			return nil
+		end)
+	end)
+end
+
 function DataService.Load(player: Player)
+	-- Retour rapide sur ce serveur : attendre la sauvegarde de la session précédente.
+	local deadline = os.clock() + 30
+	while (leaving[player.UserId] or 0) > 0 and os.clock() < deadline do
+		task.wait(0.2)
+	end
 	local data = nil
 	local loaded = store == nil
 	if store then
@@ -185,9 +221,16 @@ function DataService.Load(player: Player)
 				return
 			end
 			task.wait(busy and 5 or attempt)
+			if player.Parent == nil then
+				return
+			end
 		end
 	end
 	if player.Parent == nil then
+		-- Parti pendant le chargement : on rend le verrou qu'on vient de prendre.
+		if loaded then
+			releaseLock(player.UserId)
+		end
 		return
 	end
 	profiles[player] = reconcile(data)
@@ -295,6 +338,7 @@ function DataService.Snapshot(player: Player)
 	return {
 		Coins = profile.Coins,
 		Cards = cards,
+		XP = table.clone(profile.XP),
 		BoostersOpened = profile.BoostersOpened,
 		DailyAvailable = profile.LastClaimDay < today,
 		DailyStreak = (continues or profile.LastClaimDay == today) and profile.LoginStreak or 0,
@@ -311,7 +355,19 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 
 Players.PlayerRemoving:Connect(function(player)
-	DataService.Save(player, true)
+	local id = player.UserId
+	leaving[id] = (leaving[id] or 0) + 1
+	-- Plusieurs essais : une sauvegarde de départ ratée ferait perdre la session.
+	for attempt = 1, 3 do
+		if DataService.Save(player, true) or not canSave[player] then
+			break
+		end
+		task.wait(attempt * 2)
+	end
+	leaving[id] -= 1
+	if leaving[id] <= 0 then
+		leaving[id] = nil
+	end
 	profiles[player] = nil
 	canSave[player] = nil
 	dirty[player] = nil
@@ -337,12 +393,15 @@ game:BindToClose(function()
 	for player in pairs(profiles) do
 		pending += 1
 		task.spawn(function()
-			DataService.Save(player, true)
+			if not DataService.Save(player, true) then
+				DataService.Save(player, true)
+			end
 			pending -= 1
 		end)
 	end
+	-- Attendre aussi les sauvegardes de départ déjà lancées.
 	local deadline = os.clock() + 25
-	while pending > 0 and os.clock() < deadline do
+	while (pending > 0 or next(leaving) ~= nil) and os.clock() < deadline do
 		task.wait(0.1)
 	end
 end)

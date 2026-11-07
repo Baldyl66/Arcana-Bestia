@@ -126,6 +126,9 @@ local FADE_PROPS = {
 	{ "TextBox", "TextTransparency" },
 	{ "ImageLabel", "ImageTransparency" },
 	{ "ImageButton", "ImageTransparency" },
+	-- Vues 3D (portraits des PNJ du guide...) : sinon elles restent affichées
+	-- pendant tout le fondu de fermeture.
+	{ "ViewportFrame", "ImageTransparency" },
 	{ "ScrollingFrame", "ScrollBarImageTransparency" },
 	{ "UIStroke", "Transparency" },
 }
@@ -269,9 +272,47 @@ function UIKit.inputMode(): string
 	return "Keyboard"
 end
 
+-- Vrai si l'objet peut recevoir le focus : affiché (lui et tous ses parents)
+-- dans une interface active du joueur. Sinon Roblox avertit « Setting
+-- GuiService.SelectedObject to invalid GuiObject ».
+function UIKit.canSelect(obj: Instance?): boolean
+	if not (obj and obj:IsA("GuiObject") and obj.Selectable) then
+		return false
+	end
+	local node: Instance? = obj
+	while node do
+		if node:IsA("GuiObject") and not node.Visible then
+			return false
+		elseif node:IsA("LayerCollector") then
+			-- Écran du joueur, ou interface posée dans le monde (livre 3D).
+			return node.Enabled and (node:IsDescendantOf(game:GetService("Players").LocalPlayer) or node:IsDescendantOf(workspace))
+		end
+		node = node.Parent
+	end
+	return false
+end
+
+-- Donne le focus manette si c'est possible ; sinon réessaie brièvement
+-- (le bouton est souvent rendu visible juste après l'appel).
+function UIKit.select(obj: GuiObject?)
+	if obj == nil then
+		GuiService.SelectedObject = nil
+		return
+	end
+	if UIKit.canSelect(obj) then
+		GuiService.SelectedObject = obj
+		return
+	end
+	task.delay(0.15, function()
+		if UIKit.canSelect(obj) then
+			GuiService.SelectedObject = obj
+		end
+	end)
+end
+
 function UIKit.focus(button: GuiObject?)
 	if UIKit.inputMode() == "Gamepad" then
-		GuiService.SelectedObject = button
+		UIKit.select(button)
 	end
 end
 

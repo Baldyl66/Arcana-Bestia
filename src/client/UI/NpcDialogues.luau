@@ -255,7 +255,7 @@ local function rhea(ctx: Context, npc)
 				"Garde quand ta capacité coûte cher : ça rapporte deux ◆ d'énergie d'un coup.",
 				"Une créature faible contre l'adversaire ? Change-la ! Le bouton CHANGER montre qui est fort ou faible.",
 				"Les étourdissements et le gel font sauter un tour entier. Garde-les pour un adversaire qui charge sa capacité.",
-				"Le miroir d'Aquatortue renvoie la moitié du prochain coup : parfait contre les grosses attaques.",
+				"Le miroir de Tessaro renvoie la moitié du prochain coup : parfait contre les grosses attaques.",
 				"Les coups qui percent ignorent la garde ET les boucliers.",
 			}
 			ctx.Dialogue:SetText(tips[math.random(1, #tips)])
@@ -348,8 +348,8 @@ end
 
 local function odile(ctx: Context, npc)
 	local stories = {
-		"On raconte que Nyxaria, la reine des éclipses, n'apparaît qu'aux dresseurs qui ont ouvert cent boosters... mais ce ne sont peut-être que des histoires.",
-		"Quand j'étais petite, un Pyrogriff s'était posé sur le toit de la chapelle. Toute la ville avait accouru avec des seaux !",
+		"On raconte que Nyxalith, la reine des éclipses, n'apparaît qu'aux dresseurs qui ont ouvert cent boosters... mais ce ne sont peut-être que des histoires.",
+		"Quand j'étais petite, un Ignarax s'était posé sur le toit de la chapelle. Toute la ville avait accouru avec des seaux !",
 		"Les cristaux de Sélène chantent plus fort la nuit. Les vieux disent que c'est là que les créatures rares se montrent.",
 		"Le Cercle des Arcanes a été gravé bien avant les remparts. Ses six piliers retiennent la magie des éléments.",
 	}

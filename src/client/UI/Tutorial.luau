@@ -314,7 +314,12 @@ local function npcSnapshot(parent: Instance, id: string, silhouette: boolean?): 
 	end
 	local headOffset = npc:GetPivot():PointToObjectSpace(npc.Head.Position)
 	local focus = headOffset - Vector3.new(0, 0.9, 0)
-	return snapshot(parent, npc, focus + Vector3.new(1.6, 0.4, -7.5), focus, 34, silhouette)
+	-- Caméra bien en face du visage (direction réelle de la tête, à plat).
+	local look = npc:GetPivot():VectorToObjectSpace(npc.Head.CFrame.LookVector) * Vector3.new(1, 0, 1)
+	if look.Magnitude < 0.1 then
+		look = Vector3.new(0, 0, -1)
+	end
+	return snapshot(parent, npc, focus + look.Unit * 7.5 + Vector3.new(0, 0.4, 0), focus, 34, silhouette)
 end
 
 local function findPath(...: string): Instance?
@@ -458,7 +463,7 @@ local CHAPTERS: { Chapter } = {
 			{ Icon = "♥", Color = Color3.fromRGB(255, 130, 170), Title = "Ton grimoire", Text = "Le livre en bas de l'écran garde ta collection et tes trésors." },
 		},
 		Draw = function(f)
-			cardFan(f, { "pyrogriff", "solaryx", "glacimar" })
+			cardFan(f, { "flamichat", "solaryx", "glacimar" })
 		end,
 	},
 	{
@@ -490,7 +495,7 @@ local CHAPTERS: { Chapter } = {
 		end,
 	},
 	{
-		Key = "Duels", Icon = "⚔", Accent = Color3.fromRGB(255, 100, 90),
+		Key = "Duels", Icon = "◈", Accent = Color3.fromRGB(255, 100, 90),
 		Title = "L'art du duel",
 		Text = "Trois créatures contre trois, chacun son tour. Chaque Anima a sa propre capacité : à toi de choisir le bon moment.",
 		Points = {
@@ -507,7 +512,7 @@ local CHAPTERS: { Chapter } = {
 		Title = "Le Cercle des Arcanes",
 		Text = "À l'est de la cité, le cercle magique accueille les duels. Tu y entres avec ton Anima, sous les yeux des autres dresseurs.",
 		Points = {
-			{ Icon = "⚔", Color = Color3.fromRGB(255, 120, 100), Title = "Varek", Text = "Défie un autre joueur ou entraîne-toi contre son mannequin." },
+			{ Icon = "◈", Color = Color3.fromRGB(255, 120, 100), Title = "Varek", Text = "Défie un autre joueur ou entraîne-toi contre son mannequin." },
 			{ Icon = "★", Color = GOLD, Title = "Défi du jour", Text = "Capitaine Rhéa, à la caserne, récompense ta première victoire de la journée." },
 			{ Icon = "◎", Color = Color3.fromRGB(130, 215, 255), Title = "Spectateur", Text = "Approche-toi du cercle pendant un duel pour le regarder en direct." },
 		},

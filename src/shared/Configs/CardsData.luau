@@ -53,71 +53,71 @@ CardsData.Economy = {
 }
 
 CardsData.Cards = {
-	{ Id = "flamichat", Name = "Flamichat", Element = "Feu", Rarity = "Commun", HP = 80, Attack = 25,
+	{ Id = "flamichat", Name = "Pyxel", Element = "Feu", Rarity = "Commun", HP = 80, Attack = 25,
 		Description = "Un petit compagnon de feu rapide et joueur." },
-	{ Id = "gouttelin", Name = "Gouttelin", Element = "Eau", Rarity = "Commun", HP = 85, Attack = 20,
+	{ Id = "gouttelin", Name = "Nimbu", Element = "Eau", Rarity = "Commun", HP = 85, Attack = 20,
 		Description = "Il naît dans la rosée du matin et s'évapore quand il a peur." },
-	{ Id = "mousseron", Name = "Mousseron", Element = "Nature", Rarity = "Commun", HP = 95, Attack = 18,
+	{ Id = "mousseron", Name = "Fungo", Element = "Nature", Rarity = "Commun", HP = 95, Attack = 18,
 		Description = "Un champignon timide qui libère des spores apaisantes." },
-	{ Id = "etincelot", Name = "Étincelot", Element = "Foudre", Rarity = "Commun", HP = 70, Attack = 30,
+	{ Id = "etincelot", Name = "Zippik", Element = "Foudre", Rarity = "Commun", HP = 70, Attack = 30,
 		Description = "Il crépite d'énergie et ne tient jamais en place." },
-	{ Id = "aquatortue", Name = "Aquatortue", Element = "Eau", Rarity = "PeuCommun", HP = 120, Attack = 20,
+	{ Id = "aquatortue", Name = "Tessaro", Element = "Eau", Rarity = "PeuCommun", HP = 120, Attack = 20,
 		Description = "Une tortue solide qui maîtrise les courants." },
-	{ Id = "ronceloup", Name = "Ronceloup", Element = "Nature", Rarity = "PeuCommun", HP = 110, Attack = 32,
+	{ Id = "ronceloup", Name = "Briarok", Element = "Nature", Rarity = "PeuCommun", HP = 110, Attack = 32,
 		Description = "Un loup dont le pelage est fait de ronces vivantes." },
-	{ Id = "cendrebouc", Name = "Cendrebouc", Element = "Feu", Rarity = "PeuCommun", HP = 115, Attack = 30,
+	{ Id = "cendrebouc", Name = "Kharox", Element = "Feu", Rarity = "PeuCommun", HP = 115, Attack = 30,
 		Description = "Ses cornes rougeoient comme des braises au crépuscule." },
-	{ Id = "pyrogriff", Name = "Pyrogriff", Element = "Feu", Rarity = "Rare", HP = 145, Attack = 42,
+	{ Id = "pyrogriff", Name = "Ignarax", Element = "Feu", Rarity = "Rare", HP = 145, Attack = 42,
 		Description = "Un gardien aérien qui embrase ses ailes." },
-	{ Id = "voltigeai", Name = "Voltigeai", Element = "Foudre", Rarity = "Rare", HP = 130, Attack = 46,
+	{ Id = "voltigeai", Name = "Kestrix", Element = "Foudre", Rarity = "Rare", HP = 130, Attack = 46,
 		Description = "Un oiseau d'orage qui chevauche les éclairs." },
-	{ Id = "abyssalor", Name = "Abyssalor", Element = "Eau", Rarity = "Rare", HP = 160, Attack = 38,
+	{ Id = "abyssalor", Name = "Morwyn", Element = "Eau", Rarity = "Rare", HP = 160, Attack = 38,
 		Description = "Une murène colossale qui hante les lacs profonds." },
-	{ Id = "umbrelune", Name = "Umbrelune", Element = "Ombre", Rarity = "Epique", HP = 175, Attack = 50,
+	{ Id = "umbrelune", Name = "Velmora", Element = "Ombre", Rarity = "Epique", HP = 175, Attack = 50,
 		Description = "Une créature nocturne venue des profondeurs." },
-	{ Id = "sylvaroc", Name = "Sylvaroc", Element = "Nature", Rarity = "Epique", HP = 210, Attack = 40,
+	{ Id = "sylvaroc", Name = "Grondahl", Element = "Nature", Rarity = "Epique", HP = 210, Attack = 40,
 		Description = "Un golem de pierre et de racines, aussi vieux que la forêt." },
-	{ Id = "tonnerrhin", Name = "Tonnerrhin", Element = "Foudre", Rarity = "Epique", HP = 185, Attack = 54,
+	{ Id = "tonnerrhin", Name = "Rhazul", Element = "Foudre", Rarity = "Epique", HP = 185, Attack = 54,
 		Description = "Chacun de ses pas fait gronder le ciel." },
-	{ Id = "solaryx", Name = "Solaryx", Element = "Lumiere", Rarity = "Legendaire", HP = 200, Attack = 60,
+	{ Id = "solaryx", Name = "Aurelius", Element = "Lumiere", Rarity = "Legendaire", HP = 200, Attack = 60,
 		Description = "Une créature solaire extrêmement rare." },
-	{ Id = "nyxaria", Name = "Nyxaria", Element = "Ombre", Rarity = "Legendaire", HP = 190, Attack = 66,
+	{ Id = "nyxaria", Name = "Nyxalith", Element = "Ombre", Rarity = "Legendaire", HP = 190, Attack = 66,
 		Description = "La reine des éclipses, dont le regard éteint les étoiles." },
 
 	-- Communs
-	{ Id = "lucioline", Name = "Lucioline", Element = "Lumiere", Rarity = "Commun", HP = 75, Attack = 24,
+	{ Id = "lucioline", Name = "Liora", Element = "Lumiere", Rarity = "Commun", HP = 75, Attack = 24,
 		Description = "Une luciole curieuse qui guide les voyageurs égarés." },
-	{ Id = "ombrelin", Name = "Ombrelin", Element = "Ombre", Rarity = "Commun", HP = 78, Attack = 26,
+	{ Id = "ombrelin", Name = "Grimlet", Element = "Ombre", Rarity = "Commun", HP = 78, Attack = 26,
 		Description = "Il se cache dans l'ombre des autres et imite leurs gestes." },
-	{ Id = "braisille", Name = "Braisille", Element = "Feu", Rarity = "Commun", HP = 72, Attack = 28,
+	{ Id = "braisille", Name = "Skorri", Element = "Feu", Rarity = "Commun", HP = 72, Attack = 28,
 		Description = "Une salamandre minuscule qui dort dans les cheminées." },
-	{ Id = "galetor", Name = "Galetor", Element = "Nature", Rarity = "Commun", HP = 100, Attack = 16,
+	{ Id = "galetor", Name = "Brumbel", Element = "Nature", Rarity = "Commun", HP = 100, Attack = 16,
 		Description = "Un petit tatou de mousse qui roule le long des sentiers." },
 	-- Peu communs
-	{ Id = "marelame", Name = "Marelame", Element = "Eau", Rarity = "PeuCommun", HP = 105, Attack = 30,
+	{ Id = "marelame", Name = "Vashira", Element = "Eau", Rarity = "PeuCommun", HP = 105, Attack = 30,
 		Description = "Un espadon des marées dont l'épée fend les vagues." },
-	{ Id = "orageon", Name = "Orageon", Element = "Foudre", Rarity = "PeuCommun", HP = 100, Attack = 34,
+	{ Id = "orageon", Name = "Volgrum", Element = "Foudre", Rarity = "PeuCommun", HP = 100, Attack = 34,
 		Description = "Un bélier dont la laine accumule l'électricité des orages." },
-	{ Id = "aurelion", Name = "Aurélion", Element = "Lumiere", Rarity = "PeuCommun", HP = 112, Attack = 28,
+	{ Id = "aurelion", Name = "Solenne", Element = "Lumiere", Rarity = "PeuCommun", HP = 112, Attack = 28,
 		Description = "Un lionceau doré dont la crinière brille à l'aube." },
-	{ Id = "spectrombre", Name = "Spectrombre", Element = "Ombre", Rarity = "PeuCommun", HP = 98, Attack = 35,
+	{ Id = "spectrombre", Name = "Wispira", Element = "Ombre", Rarity = "PeuCommun", HP = 98, Attack = 35,
 		Description = "Un renard fantôme qui traverse les murs les nuits de brume." },
 	-- Rares
-	{ Id = "florhydre", Name = "Florhydre", Element = "Nature", Rarity = "Rare", HP = 150, Attack = 40,
+	{ Id = "florhydre", Name = "Sylphira", Element = "Nature", Rarity = "Rare", HP = 150, Attack = 40,
 		Description = "Une hydre fleurie : chaque tête coupée repousse en bouton." },
-	{ Id = "seraphel", Name = "Séraphel", Element = "Lumiere", Rarity = "Rare", HP = 140, Attack = 44,
+	{ Id = "seraphel", Name = "Elarion", Element = "Lumiere", Rarity = "Rare", HP = 140, Attack = 44,
 		Description = "Un cerf ailé qui veille sur les sanctuaires oubliés." },
-	{ Id = "nocturbe", Name = "Nocturbe", Element = "Ombre", Rarity = "Rare", HP = 135, Attack = 47,
+	{ Id = "nocturbe", Name = "Noxtalon", Element = "Ombre", Rarity = "Rare", HP = 135, Attack = 47,
 		Description = "Un hibou géant dont les plumes absorbent la lumière." },
 	-- Épiques
-	{ Id = "magmorex", Name = "Magmorex", Element = "Feu", Rarity = "Epique", HP = 195, Attack = 52,
+	{ Id = "magmorex", Name = "Vulkhar", Element = "Feu", Rarity = "Epique", HP = 195, Attack = 52,
 		Description = "Un dragon de lave qui sommeille sous les volcans." },
-	{ Id = "glacimar", Name = "Glacimar", Element = "Eau", Rarity = "Epique", HP = 205, Attack = 46,
+	{ Id = "glacimar", Name = "Thalassor", Element = "Eau", Rarity = "Epique", HP = 205, Attack = 46,
 		Description = "Un léviathan des mers gelées au chant envoûtant." },
 	-- Légendaires
-	{ Id = "fulguron", Name = "Fulguron", Element = "Foudre", Rarity = "Legendaire", HP = 185, Attack = 70,
+	{ Id = "fulguron", Name = "Zhaltor", Element = "Foudre", Rarity = "Legendaire", HP = 185, Attack = 70,
 		Description = "Le seigneur des tempêtes, né du premier éclair du monde." },
-	{ Id = "gaiandre", Name = "Gaïandre", Element = "Nature", Rarity = "Legendaire", HP = 240, Attack = 56,
+	{ Id = "gaiandre", Name = "Yggrana", Element = "Nature", Rarity = "Legendaire", HP = 240, Attack = 56,
 		Description = "La gardienne millénaire des forêts, sur son dos pousse un bois entier." },
 }
 
@@ -223,8 +223,71 @@ function CardsData.abilityText(ability): string
 	return table.concat(parts, " · ")
 end
 
+-------------------------------------------------------------------------------
+-- Progression : chaque créature possédée gagne de l'expérience en combat,
+-- monte de niveau (+4 % PV et attaque par niveau) et évolue deux fois.
+-------------------------------------------------------------------------------
+CardsData.Progression = {
+	MaxLevel = 30,
+	LevelGrowth = 0.04,
+	-- Expérience gagnée par chaque créature de l'équipe à la fin d'un combat.
+	XP = { Win = 60, Draw = 35, Lose = 20, KOBonus = 10 },
+	TrainingFactor = 0.5, -- l'entraînement rapporte moitié moins
+	-- Évolutions : nom de forme, niveau requis, bonus de stats, taille en 3D.
+	Stages = {
+		{ Level = 1, Label = "", Bonus = 0, Scale = 1 },
+		{ Level = 10, Label = "Éveillé", Bonus = 0.1, Scale = 1.2, Star = "★" },
+		{ Level = 20, Label = "Ascendant", Bonus = 0.2, Scale = 1.4, Star = "★★" },
+	},
+}
+
+-- Expérience totale nécessaire pour atteindre un niveau (courbe douce).
+function CardsData.xpForLevel(level: number): number
+	-- Niveau 10 ≈ 15 victoires, niveau 20 ≈ 60 victoires.
+	return 10 * (level - 1) * level
+end
+
+function CardsData.levelFromXP(xp: number?): number
+	local level = 1
+	while level < CardsData.Progression.MaxLevel and (xp or 0) >= CardsData.xpForLevel(level + 1) do
+		level += 1
+	end
+	return level
+end
+
+function CardsData.stageOf(level: number): (number, any)
+	local index = 1
+	for i, stage in ipairs(CardsData.Progression.Stages) do
+		if level >= stage.Level then
+			index = i
+		end
+	end
+	return index, CardsData.Progression.Stages[index]
+end
+
+-- Stats d'une créature à un niveau donné (évolution comprise).
+function CardsData.statsAt(card, level: number): (number, number)
+	local _, stage = CardsData.stageOf(level)
+	local factor = (1 + CardsData.Progression.LevelGrowth * (level - 1)) * (1 + stage.Bonus)
+	return math.floor(card.HP * factor + 0.5), math.floor(card.Attack * factor + 0.5)
+end
+
+-- Nom affiché selon l'évolution (« Pyxel Éveillé »).
+function CardsData.displayName(card, level: number?): string
+	local _, stage = CardsData.stageOf(level or 1)
+	return stage.Label ~= "" and (card.Name .. " " .. stage.Label) or card.Name
+end
+
+-- Illustrations des cartes (PNG fond transparent, sources dans assets/cartes).
+local IMAGES = {
+	flamichat = "rbxassetid://98209524872340",
+	solaryx = "rbxassetid://83081529632941",
+	glacimar = "rbxassetid://85416088782367",
+}
+
 CardsData.CardById = {}
 for _, card in ipairs(CardsData.Cards) do
+	card.Image = IMAGES[card.Id]
 	CardsData.CardById[card.Id] = card
 	card.Ability = ABILITIES[card.Id] or { Name = "Coup puissant", Cost = 3, Power = 1.6 }
 end

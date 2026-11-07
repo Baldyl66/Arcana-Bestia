@@ -261,10 +261,20 @@ function MainMenu:Layout()
 		end
 	end
 	-- Hauteur utile du bloc : 600 (normal) ou ~390 (compact).
+	-- Part de la hauteur occupée : le bloc reste aéré (le décor 3D doit se voir),
+	-- surtout sur téléphone où l'écran est petit.
 	local contentH = compact and 390 or 600
-	local inset = compact and 0.9 or 0.86
-	local scale = math.min(viewport.Y * inset / contentH, viewport.X * 0.9 / 560)
-	self.ContentScale.Scale = math.clamp(scale, 0.55, 1.2) * (UIKit.Settings.UIScale or 1)
+	-- Le cadre prend la hauteur réelle du contenu (sinon, centré, il remonte
+	-- sous la barre Roblox), et on décale le centre sous cette barre.
+	self.Content.Size = UDim2.fromOffset(560, contentH)
+	local inset = game:GetService("GuiService"):GetGuiInset().Y
+	self.ContentPosition = UDim2.new(0.06, 0, 0.5, inset / 2)
+	if self.Showing then
+		self.Content.Position = self.ContentPosition
+	end
+	local share = compact and 0.68 or 0.72
+	local scale = math.min((viewport.Y - inset) * share / contentH, viewport.X * 0.45 / 560)
+	self.ContentScale.Scale = math.clamp(scale, 0.4, 1) * (UIKit.Settings.UIScale or 1)
 end
 
 function MainMenu:SetProgress(progress: number)
@@ -315,9 +325,14 @@ function MainMenu:Show()
 	self.Showing = true
 	self.Root.Visible = true
 	self.Particles.Visible = true
-	self.Content.Position = UDim2.new(0.035, 0, 0.5, 0)
+	local target = self.ContentPosition or UDim2.new(0.06, 0, 0.5, 0)
+	self.Content.Position = target - UDim2.fromScale(0.025, 0)
 	UIKit.fade(self.Root, true, 1)
-	UIKit.tween(self.Content, 1.2, { Position = UDim2.new(0.06, 0, 0.5, 0) }, Enum.EasingStyle.Quint)
+	UIKit.tween(self.Content, 1.2, { Position = target }, Enum.EasingStyle.Quint)
+	-- Joystick et bouton de saut masqués sur le menu (mobile).
+	pcall(function()
+		game:GetService("GuiService").TouchControlsEnabled = false
+	end)
 	self:StartCinematic()
 	if self.Ready then
 		UIKit.focus(self.PlayButton)
@@ -328,6 +343,9 @@ function MainMenu:Hide()
 	self:StopCinematic()
 	self.Showing = false
 	self.Particles.Visible = false
+	pcall(function()
+		game:GetService("GuiService").TouchControlsEnabled = true
+	end)
 	UIKit.fade(self.Root, false, 0.45)
 	task.delay(0.5, function()
 		if not self.Showing then

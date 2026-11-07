@@ -166,20 +166,6 @@ local function side(slab: Instance, parent: Instance, info, isLeft: boolean, col
 		Size = UDim2.new(1, 0, 0, 62), ZIndex = 66, Parent = content }, 52)
 	UIKit.new("UIGradient", { Color = ColorSequence.new(Color3.fromRGB(255, 240, 190), Color3.fromRGB(230, 170, 70)), Rotation = 90, Parent = name })
 	UIKit.new("UIStroke", { Color = Color3.fromRGB(30, 12, 5), Thickness = 3, Parent = name })
-	-- Équipe : une gemme par créature, à la couleur de son élément.
-	local team = UIKit.new("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 484), Size = UDim2.fromOffset(300, 40),
-		ZIndex = 66, Parent = content })
-	UIKit.new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center,
-		VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 18), Parent = team })
-	for i, f in ipairs(info.Deck) do
-		local card = CardsData.CardById[f.Id]
-		local el = card and CardsData.Elements[card.Element]
-		local holder = UIKit.new("Frame", { BackgroundTransparency = 1, Size = UDim2.fromOffset(34, 34), LayoutOrder = i, ZIndex = 66, Parent = team })
-		local gem = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.75, 0.75), Rotation = 45,
-			BackgroundColor3 = el and el.Color or color, ZIndex = 67, Parent = holder })
-		UIKit.corner(gem, 4)
-		UIKit.stroke(gem, GOLD, 2.5, 0)
-	end
 	content:SetAttribute("Dir", dir)
 	return panel, content
 end
@@ -410,64 +396,176 @@ function DuelScreen:Select(data)
 		Size = UDim2.fromOffset(1100, 640), ZIndex = 61, Parent = root })
 	UIKit.scaled(stage)
 	self.SelectStage = stage
+	local me = Players.LocalPlayer
+	local VIOLET = Color3.fromRGB(46, 32, 78)
 
-	-- En-tête : titre, adversaire, minuteur.
-	local title = text(stage, data.Training and "ENTRAÎNEMENT  •  CHOISIS TON ÉQUIPE" or "DUEL  •  CHOISIS TON ÉQUIPE",
-		{ Font = UIKit.Fonts.Title, TextColor3 = GOLD, Size = UDim2.new(1, 0, 0, 44), ZIndex = 62 }, 40)
-	UIKit.new("UIStroke", { Color = Color3.fromRGB(40, 15, 5), Thickness = 2, Parent = title })
-	text(stage, string.format("Face à %s  •  sélectionne %d créature%s", data.Opp.Name, data.Size, data.Size > 1 and "s" or ""),
-		{ Font = UIKit.Fonts.Bold, TextColor3 = UIKit.Colors.SubText, Position = UDim2.fromOffset(0, 46), Size = UDim2.new(1, 0, 0, 22), ZIndex = 62 }, 18)
-	local timerTrack = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 76), Size = UDim2.fromOffset(420, 6),
-		BackgroundColor3 = INK, ZIndex = 62, Parent = stage })
-	UIKit.corner(timerTrack, 3)
-	local timer = UIKit.new("Frame", { BackgroundColor3 = GOLD, Size = UDim2.fromScale(1, 1), ZIndex = 63, Parent = timerTrack })
-	UIKit.corner(timer, 3)
-	UIKit.tween(timer, data.Time, { Size = UDim2.fromScale(0, 1) }, Enum.EasingStyle.Linear)
-
-	-- Collection (gauche).
-	local library = plate(stage, { Position = UDim2.fromOffset(0, 98), Size = UDim2.fromOffset(720, 542), ZIndex = 61 })
-	text(library, "TA COLLECTION", { Position = UDim2.fromOffset(20, 12), Size = UDim2.new(1, -40, 0, 22), TextXAlignment = Enum.TextXAlignment.Left,
-		TextColor3 = GOLD, ZIndex = 62 }, 18)
-	local scroll = UIKit.new("ScrollingFrame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(14, 42), Size = UDim2.new(1, -28, 1, -56),
-		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 6, ScrollBarImageColor3 = GOLD,
-		BorderSizePixel = 0, ZIndex = 62, Parent = library })
-	UIKit.new("UIGridLayout", { CellSize = UDim2.fromOffset(124, 172), CellPadding = UDim2.fromOffset(12, 14), SortOrder = Enum.SortOrder.LayoutOrder, Parent = scroll })
-	UIKit.new("UIPadding", { PaddingTop = UDim.new(0, 6), PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6), Parent = scroll })
-
-	-- Équipe (droite).
-	local teamPanel = plate(stage, { Position = UDim2.fromOffset(740, 98), Size = UDim2.fromOffset(360, 542), ZIndex = 61 })
-	text(teamPanel, "TON ÉQUIPE", { Position = UDim2.fromOffset(20, 12), Size = UDim2.new(1, -40, 0, 22), TextXAlignment = Enum.TextXAlignment.Left,
-		TextColor3 = GOLD, ZIndex = 62 }, 18)
-	local slotFrames = {}
-	for i = 1, 3 do
-		local slot = UIKit.new("Frame", { Position = UDim2.fromOffset(16, 44 + (i - 1) * 112), Size = UDim2.new(1, -32, 0, 100), BackgroundColor3 = INK,
-			BackgroundTransparency = 0.2, ZIndex = 62, Parent = teamPanel })
-		UIKit.corner(slot, 10)
-		local stroke = UIKit.stroke(slot, MUTED, 1.5, 0.2)
-		local num = text(slot, tostring(i), { Font = UIKit.Fonts.Title, TextColor3 = MUTED, Position = UDim2.fromOffset(10, 0),
-			Size = UDim2.new(0, 30, 1, 0), ZIndex = 63 }, 32)
-		local thumb = UIKit.new("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(46, 8), Size = UDim2.fromOffset(60, 84), ZIndex = 63, Parent = slot })
-		local name = text(slot, "", { Font = UIKit.Fonts.Bold, TextColor3 = UIKit.Colors.SubText,
-			Position = UDim2.fromOffset(118, 18), Size = UDim2.new(1, -128, 0, 24), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 63 }, 18)
-		local stats = text(slot, "", { Font = UIKit.Fonts.Bold, TextColor3 = UIKit.Colors.SubText, Position = UDim2.fromOffset(118, 50),
-			Size = UDim2.new(1, -128, 0, 30), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 63, RichText = true }, 15)
-		slotFrames[i] = { Frame = slot, Stroke = stroke, Num = num, Thumb = thumb, Name = name, Stats = stats }
+	-- Panneau sombre arrondi avec liseré doré et léger dégradé.
+	local function panel(props): Frame
+		props.BackgroundColor3 = Color3.new(1, 1, 1)
+		props.Parent = props.Parent or stage
+		local p = UIKit.new("Frame", props)
+		UIKit.corner(p, 16)
+		UIKit.gradient(p, Color3.fromRGB(38, 26, 62), Color3.fromRGB(14, 10, 24), 90)
+		UIKit.stroke(p, GOLD, 1.5, 0.35)
+		return p
 	end
-	local summary = text(teamPanel, "", { Font = UIKit.Fonts.Bold, Position = UDim2.fromOffset(16, 384), Size = UDim2.new(1, -32, 0, 40),
-		RichText = true, ZIndex = 62 }, 16)
-	local oppState = text(teamPanel, data.Opp.Name .. " choisit son équipe...", { Font = UIKit.Fonts.Bold, TextColor3 = UIKit.Colors.SubText,
-		Position = UDim2.fromOffset(16, 428), Size = UDim2.new(1, -32, 0, 22), ZIndex = 62 }, 15)
+	local function sectionTitle(parent: Instance, value: string, sub: string?)
+		text(parent, value, { Font = UIKit.Fonts.Title, TextColor3 = GOLD, Position = UDim2.fromOffset(22, 14), Size = UDim2.new(1, -44, 0, 26),
+			TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 63 }, 24)
+		if sub then
+			text(parent, sub, { Font = UIKit.Fonts.Bold, TextColor3 = MUTED:Lerp(CREAM, 0.4), Position = UDim2.fromOffset(22, 42), Size = UDim2.new(1, -44, 0, 18),
+				TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 63 }, 14)
+		end
+	end
+
+	---------------------------------------------------------------------------
+	-- En-tête : mode, face-à-face, compte à rebours.
+	---------------------------------------------------------------------------
+	text(stage, data.Training and "ENTRAÎNEMENT" or "DUEL DE L'ARÈNE", { Font = UIKit.Fonts.Bold, TextColor3 = MUTED:Lerp(CREAM, 0.5),
+		Size = UDim2.new(1, 0, 0, 18), ZIndex = 62 }, 16)
+	local title = text(stage, "CHOISIS TON ÉQUIPE", { Font = UIKit.Fonts.Title, TextColor3 = Color3.new(1, 1, 1), Position = UDim2.fromOffset(0, 18),
+		Size = UDim2.new(1, 0, 0, 46), ZIndex = 62 }, 42)
+	UIKit.new("UIGradient", { Color = ColorSequence.new(Color3.fromRGB(255, 240, 190), Color3.fromRGB(225, 165, 70)), Rotation = 90, Parent = title })
+	UIKit.new("UIStroke", { Color = Color3.fromRGB(40, 15, 5), Thickness = 2, Parent = title })
+	-- Face-à-face : toi, VS, l'adversaire.
+	local versus = UIKit.new("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 68),
+		Size = UDim2.fromOffset(520, 40), ZIndex = 62, Parent = stage })
+	avatarCircle(versus, me.UserId, 36, BLUE, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(0.5, -44, 0.5, 0), ZIndex = 63 })
+	text(versus, me.DisplayName, { Font = UIKit.Fonts.Bold, TextColor3 = CREAM, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(0.5, -90, 0.5, 0),
+		Size = UDim2.fromOffset(160, 22), TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 63 }, 18)
+	local vs = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(46, 30),
+		BackgroundColor3 = RED, ZIndex = 63, Parent = versus })
+	UIKit.corner(vs, 15)
+	UIKit.stroke(vs, GOLD, 2, 0)
+	text(vs, "VS", { Font = UIKit.Fonts.Black, TextColor3 = Color3.new(1, 1, 1), Size = UDim2.fromScale(1, 1), ZIndex = 64 }, 16)
+	avatarCircle(versus, data.Opp.UserId or 0, 36, RED, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0.5, 44, 0.5, 0), ZIndex = 63 })
+	text(versus, data.Opp.Name, { Font = UIKit.Fonts.Bold, TextColor3 = CREAM, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0.5, 90, 0.5, 0),
+		Size = UDim2.fromOffset(180, 22), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 63 }, 18)
+	-- Compte à rebours (pastille à droite de l'en-tête) + fine barre.
+	local clock = UIKit.new("Frame", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 14), Size = UDim2.fromOffset(84, 84),
+		BackgroundColor3 = INK, ZIndex = 62, Parent = stage })
+	UIKit.corner(clock, 42)
+	local clockStroke = UIKit.stroke(clock, GOLD, 3, 0)
+	local clockText = text(clock, tostring(data.Time), { Font = UIKit.Fonts.Black, TextColor3 = CREAM, Position = UDim2.fromOffset(0, 14),
+		Size = UDim2.new(1, 0, 0, 36), ZIndex = 63 }, 34)
+	text(clock, "sec", { Font = UIKit.Fonts.Bold, TextColor3 = MUTED:Lerp(CREAM, 0.4), Position = UDim2.fromOffset(0, 50), Size = UDim2.new(1, 0, 0, 16), ZIndex = 63 }, 13)
+	local deadline = os.clock() + data.Time
+	task.spawn(function()
+		while clock.Parent and token == self.Token do
+			local left = math.max(0, math.ceil(deadline - os.clock()))
+			clockText.Text = tostring(left)
+			local urgent = left <= 5
+			clockStroke.Color = urgent and RED or GOLD
+			clockText.TextColor3 = urgent and Color3.fromRGB(255, 140, 140) or CREAM
+			if left <= 0 then
+				break
+			end
+			task.wait(0.25)
+		end
+	end)
+
+	---------------------------------------------------------------------------
+	-- Collection (gauche) : grandes cartes, niveau, sélection lumineuse.
+	---------------------------------------------------------------------------
+	local library = panel({ Position = UDim2.fromOffset(0, 124), Size = UDim2.fromOffset(700, 516), ZIndex = 61 })
+	sectionTitle(library, "TA COLLECTION", string.format("Touche %d créatures pour former ton équipe", data.Size))
+	local scroll = UIKit.new("ScrollingFrame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 70), Size = UDim2.new(1, -24, 1, -82),
+		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 5, ScrollBarImageColor3 = GOLD,
+		BorderSizePixel = 0, ZIndex = 62, Parent = library })
+	UIKit.new("UIGridLayout", { CellSize = UDim2.fromOffset(150, 219), CellPadding = UDim2.fromOffset(16, 18), SortOrder = Enum.SortOrder.LayoutOrder,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center, Parent = scroll })
+	UIKit.new("UIPadding", { PaddingTop = UDim.new(0, 12), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), PaddingBottom = UDim.new(0, 12), Parent = scroll })
+
+	---------------------------------------------------------------------------
+	-- Équipe (droite) : trois emplacements, puissance, validation.
+	---------------------------------------------------------------------------
+	local teamPanel = panel({ Position = UDim2.fromOffset(716, 124), Size = UDim2.fromOffset(384, 516), ZIndex = 61 })
+	sectionTitle(teamPanel, "TON ÉQUIPE", "Touche un emplacement pour le libérer")
+	local slotFrames = {}
+	local levels = {}
+	for _, entry in ipairs(data.Cards) do
+		levels[entry.Id] = entry.Level or 1
+	end
+	local picked: { string } = {}
+	local refresh
+	for i = 1, 3 do
+		local slot = UIKit.new("TextButton", { Text = "", AutoButtonColor = false, Position = UDim2.fromOffset(16, 70 + (i - 1) * 100), Size = UDim2.new(1, -32, 0, 88),
+			BackgroundColor3 = Color3.new(1, 1, 1), ZIndex = 62, Parent = teamPanel })
+		UIKit.corner(slot, 12)
+		local gradient = UIKit.gradient(slot, VIOLET, INK, 0)
+		local stroke = UIKit.stroke(slot, MUTED, 1.5, 0.3)
+		local accent = UIKit.new("Frame", { Position = UDim2.fromOffset(0, 10), Size = UDim2.new(0, 5, 1, -20), BackgroundColor3 = MUTED, BorderSizePixel = 0,
+			ZIndex = 63, Parent = slot })
+		UIKit.corner(accent, 3)
+		local thumb = UIKit.new("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 8), Size = UDim2.fromOffset(49, 72), ZIndex = 63, Parent = slot })
+		-- Emplacement vide : gros « + » et invitation.
+		local plus = UIKit.new("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 8), Size = UDim2.fromOffset(49, 72), ZIndex = 63, Parent = slot })
+		UIKit.corner(plus, 8)
+		UIKit.stroke(plus, MUTED, 2, 0.2)
+		text(plus, "+", { Font = UIKit.Fonts.Black, TextColor3 = MUTED, Size = UDim2.fromScale(1, 1), ZIndex = 64 }, 34)
+		local name = text(slot, "", { Font = Enum.Font.Merriweather, TextColor3 = CREAM, Position = UDim2.fromOffset(78, 10), Size = UDim2.new(1, -150, 0, 26),
+			TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 63 }, 21)
+		local level = text(slot, "", { Font = UIKit.Fonts.Black, TextColor3 = GOLD, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 12),
+			Size = UDim2.fromOffset(70, 22), TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 63 }, 16)
+		local info = text(slot, "", { Font = UIKit.Fonts.Bold, RichText = true, TextColor3 = MUTED:Lerp(CREAM, 0.5), Position = UDim2.fromOffset(78, 38),
+			Size = UDim2.new(1, -92, 0, 18), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 63 }, 15)
+		local ability = text(slot, "", { Font = UIKit.Fonts.Bold, TextColor3 = Color3.fromRGB(255, 215, 140), Position = UDim2.fromOffset(78, 58),
+			Size = UDim2.new(1, -92, 0, 18), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 63 }, 14)
+		slot.Activated:Connect(function()
+			if picked[i] and not self.SelectLocked then
+				table.remove(picked, i)
+				UIKit.playSound("Click", 0.5, 0.9)
+				refresh()
+			end
+		end)
+		slotFrames[i] = { Frame = slot, Gradient = gradient, Stroke = stroke, Accent = accent, Thumb = thumb, Plus = plus, Name = name, Level = level, Info = info,
+			Ability = ability }
+	end
+
+	-- Puissance de l'équipe : deux jauges (PV et ATQ totaux).
+	local power = UIKit.new("Frame", { BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 372), Size = UDim2.new(1, -32, 0, 44), ZIndex = 62, Parent = teamPanel })
+	local gauges = {}
+	for i, def in ipairs({ { "PV", Color3.fromRGB(230, 80, 90) }, { "ATQ", Color3.fromRGB(255, 160, 60) } }) do
+		local y = (i - 1) * 24
+		text(power, def[1], { Font = UIKit.Fonts.Black, TextColor3 = def[2], Position = UDim2.fromOffset(0, y), Size = UDim2.fromOffset(40, 18),
+			TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 63 }, 14)
+		local track = UIKit.new("Frame", { Position = UDim2.fromOffset(44, y + 5), Size = UDim2.new(1, -110, 0, 9), BackgroundColor3 = Color3.fromRGB(40, 30, 60),
+			ZIndex = 63, Parent = power })
+		UIKit.corner(track, 5)
+		local fill = UIKit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = def[2], ZIndex = 64, Parent = track })
+		UIKit.corner(fill, 5)
+		local value = text(power, "0", { Font = UIKit.Fonts.Black, TextColor3 = CREAM, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, y),
+			Size = UDim2.fromOffset(60, 18), TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 63 }, 15)
+		gauges[i] = { Fill = fill, Value = value }
+	end
+	local oppState = text(teamPanel, data.Opp.Name .. " choisit son équipe...", { Font = UIKit.Fonts.Bold, TextColor3 = MUTED:Lerp(CREAM, 0.4),
+		Position = UDim2.fromOffset(16, 420), Size = UDim2.new(1, -32, 0, 18), ZIndex = 62 }, 14)
 	self.OppState = oppState
 	if data.Training then
 		oppState.Text = "Le mannequin s'adaptera à ton équipe."
 	end
 
-	local picked: { string } = {}
-	local tiles = {}
-	local locked = false
-	local confirm
+	-- Bouton de validation : pilule dorée.
+	local confirm = UIKit.new("TextButton", { Text = "", AutoButtonColor = false, Position = UDim2.fromOffset(16, 446), Size = UDim2.new(1, -32, 0, 56),
+		BackgroundColor3 = Color3.new(1, 1, 1), Selectable = true, ZIndex = 62, Parent = teamPanel })
+	UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = confirm })
+	local confirmGradient = UIKit.gradient(confirm, Color3.fromRGB(255, 222, 140), Color3.fromRGB(190, 112, 34), 90)
+	UIKit.stroke(confirm, Color3.fromRGB(255, 240, 200), 2, 0.1)
+	local confirmLabel = text(confirm, "VALIDER L'ÉQUIPE", { Font = UIKit.Fonts.Black, TextColor3 = Color3.fromRGB(70, 32, 8), Size = UDim2.fromScale(1, 1), ZIndex = 63 }, 22)
+	local confirmScale = UIKit.new("UIScale", { Parent = confirm })
+	confirm.MouseEnter:Connect(function()
+		if confirm.Active then
+			UIKit.tween(confirmScale, 0.15, { Scale = 1.04 }, Enum.EasingStyle.Back)
+		end
+	end)
+	confirm.MouseLeave:Connect(function()
+		UIKit.tween(confirmScale, 0.15, { Scale = 1 })
+	end)
 
-	local function refresh()
+	local tiles = {}
+	self.SelectLocked = false
+
+	refresh = function()
 		local hp, atk = 0, 0
 		for i, s in ipairs(slotFrames) do
 			for _, c in ipairs(s.Thumb:GetChildren()) do
@@ -475,59 +573,94 @@ function DuelScreen:Select(data)
 			end
 			local id = picked[i]
 			local c = id and card(id)
+			s.Frame.Visible = i <= data.Size
 			if c then
 				local el = CardsData.Elements[c.Element]
-				CardView.create(c, { Parent = s.Thumb })
-				s.Name.Text = c.Name
-				s.Name.TextColor3 = CREAM
-				s.Stats.Text = string.format('<font color="#%s">%s</font>   ♥ %d   ⚔ %d   <font color="#FFD778">✦ %s</font>', el.Color:ToHex(), el.Label, c.HP, c.Attack, c.Ability.Name)
+				local lvl = levels[id] or 1
+				local chp, catk = CardsData.statsAt(c, lvl)
+				CardView.create(c, { Size = UDim2.fromScale(1, 1), Parent = s.Thumb })
+				s.Plus.Visible = false
+				s.Name.Text = CardsData.displayName(c, lvl)
+				s.Level.Text = "NIV. " .. lvl
+				s.Info.Text = string.format('<font color="#%s">%s</font>   PV %d   ATQ %d', el.Color:ToHex(), el.Label, chp, catk)
+				s.Ability.Text = c.Ability.Name
 				s.Stroke.Color = el.Color
-				s.Num.TextColor3 = GOLD
-				hp += c.HP
-				atk += c.Attack
+				s.Stroke.Transparency = 0
+				s.Accent.BackgroundColor3 = el.Color
+				s.Gradient.Color = ColorSequence.new(el.Dark:Lerp(VIOLET, 0.4), INK)
+				hp += chp
+				atk += catk
 			else
-				s.Name.Text = i <= data.Size and "Emplacement libre" or "—"
-				s.Name.TextColor3 = UIKit.Colors.SubText
-				s.Stats.Text = ""
+				s.Plus.Visible = true
+				s.Name.Text = "Emplacement " .. i
+				s.Level.Text = ""
+				s.Info.Text = "Choisis une créature"
+				s.Ability.Text = ""
 				s.Stroke.Color = MUTED
-				s.Num.TextColor3 = MUTED
+				s.Stroke.Transparency = 0.3
+				s.Accent.BackgroundColor3 = MUTED
+				s.Gradient.Color = ColorSequence.new(VIOLET, INK)
 			end
 		end
-		summary.Text = #picked > 0 and string.format("Équipe : <b>♥ %d PV</b>   •   <b>⚔ %d ATQ</b>", hp, atk) or "Touche une carte pour l'ajouter."
+		-- Jauges : rapportées à une équipe « forte » de référence.
+		UIKit.tween(gauges[1].Fill, 0.35, { Size = UDim2.fromScale(math.clamp(hp / 700, 0, 1), 1) }, Enum.EasingStyle.Quint)
+		UIKit.tween(gauges[2].Fill, 0.35, { Size = UDim2.fromScale(math.clamp(atk / 200, 0, 1), 1) }, Enum.EasingStyle.Quint)
+		gauges[1].Value.Text = tostring(hp)
+		gauges[2].Value.Text = tostring(atk)
 		for id, t in pairs(tiles) do
 			local index = table.find(picked, id)
 			t.Badge.Visible = index ~= nil
 			t.BadgeText.Text = index and tostring(index) or ""
-			t.Stroke.Transparency = index and 0 or 1
-			t.Dim.BackgroundTransparency = (not index and #picked >= data.Size) and 0.5 or 1
+			t.Glow.Visible = index ~= nil
+			t.Dim.BackgroundTransparency = (not index and #picked >= data.Size) and 0.45 or 1
 		end
-		local ready = #picked == data.Size
-		confirm.Active = ready and not locked
-		UIKit.setDimmed(confirm, not ready or locked)
+		local ready = #picked == data.Size and not self.SelectLocked
+		confirm.Active = ready
+		confirmGradient.Color = ready and ColorSequence.new(Color3.fromRGB(255, 222, 140), Color3.fromRGB(190, 112, 34))
+			or ColorSequence.new(Color3.fromRGB(120, 105, 90), Color3.fromRGB(70, 60, 55))
+		if not self.SelectLocked then
+			confirmLabel.Text = ready and "VALIDER L'ÉQUIPE" or string.format("ENCORE %d CRÉATURE%s", data.Size - #picked, data.Size - #picked > 1 and "S" or "")
+		end
 	end
 
 	for order, entry in ipairs(data.Cards) do
 		local c = card(entry.Id)
 		if c then
-			local tile = UIKit.new("TextButton", { Text = "", AutoButtonColor = false, BackgroundTransparency = 1, LayoutOrder = order, ZIndex = 63, Parent = scroll })
-			local view = CardView.create(c, { Parent = tile })
-			view.ZIndex = 63
-			local stroke = UIKit.stroke(tile, GOLD, 4, 1)
-			UIKit.corner(tile, 8)
-			local dim = UIKit.new("Frame", { BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 70, Parent = tile })
+			local tile = UIKit.new("TextButton", { Text = "", AutoButtonColor = false, BackgroundTransparency = 1, LayoutOrder = order, ZIndex = 63, Selectable = true,
+				Parent = scroll })
+			local holder = UIKit.new("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+				Size = UDim2.fromScale(1, 1), ZIndex = 63, Parent = tile })
+			local hover = UIKit.new("UIScale", { Parent = holder })
+			-- Halo doré derrière une carte choisie.
+			local glow = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(1, 14, 1, 14),
+				BackgroundColor3 = GOLD, BackgroundTransparency = 0.55, Visible = false, ZIndex = 63, Parent = holder })
+			UIKit.corner(glow, 14)
+			UIKit.stroke(glow, Color3.fromRGB(255, 240, 190), 3, 0)
+			local view = CardView.create(c, { Size = UDim2.fromScale(1, 1), Parent = holder })
+			view.ZIndex = 64
+			local dim = UIKit.new("Frame", { BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 70, Parent = holder })
 			UIKit.corner(dim, 8)
-			local badge = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, -8, 0, 8), Size = UDim2.fromOffset(30, 30),
-				BackgroundColor3 = GOLD, Visible = false, ZIndex = 72, Parent = tile })
+			-- Niveau en bas à gauche.
+			local lvl = UIKit.new("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, -4, 1, 4), Size = UDim2.fromOffset(52, 22),
+				BackgroundColor3 = INK, ZIndex = 71, Parent = holder })
+			UIKit.corner(lvl, 11)
+			UIKit.stroke(lvl, GOLD, 1.5, 0)
+			text(lvl, "NIV. " .. (entry.Level or 1), { Font = UIKit.Fonts.Black, TextColor3 = GOLD, Size = UDim2.fromScale(1, 1), ZIndex = 72 }, 12)
+			-- Numéro d'ordre dans l'équipe.
+			local badge = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, -6, 0, 6), Size = UDim2.fromOffset(34, 34),
+				BackgroundColor3 = GOLD, Visible = false, ZIndex = 72, Parent = holder })
 			UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = badge })
-			UIKit.stroke(badge, INK, 2, 0)
-			local badgeText = text(badge, "", { Size = UDim2.fromScale(1, 1), TextColor3 = INK, ZIndex = 73 }, 18)
-			if (entry.Count or 1) > 1 then
-				text(tile, "x" .. entry.Count, { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 6, 1, -4), Size = UDim2.fromOffset(40, 18),
-					TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 71 }, 14)
-			end
-			tiles[entry.Id] = { Badge = badge, BadgeText = badgeText, Stroke = stroke, Dim = dim }
+			UIKit.stroke(badge, INK, 3, 0)
+			local badgeText = text(badge, "", { Font = UIKit.Fonts.Black, Size = UDim2.fromScale(1, 1), TextColor3 = INK, ZIndex = 73 }, 20)
+			tiles[entry.Id] = { Badge = badge, BadgeText = badgeText, Glow = glow, Dim = dim }
+			tile.MouseEnter:Connect(function()
+				UIKit.tween(hover, 0.15, { Scale = 1.05 }, Enum.EasingStyle.Back)
+			end)
+			tile.MouseLeave:Connect(function()
+				UIKit.tween(hover, 0.15, { Scale = 1 })
+			end)
 			tile.Activated:Connect(function()
-				if locked then
+				if self.SelectLocked then
 					return
 				end
 				local index = table.find(picked, entry.Id)
@@ -535,6 +668,9 @@ function DuelScreen:Select(data)
 					table.remove(picked, index)
 				elseif #picked < data.Size then
 					table.insert(picked, entry.Id)
+					local sc = badge:FindFirstChildOfClass("UIScale") or UIKit.new("UIScale", { Parent = badge })
+					sc.Scale = 1.6
+					UIKit.tween(sc, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
 				else
 					return
 				end
@@ -544,33 +680,32 @@ function DuelScreen:Select(data)
 		end
 	end
 
-	confirm = UIKit.button({ Text = "VALIDER L'ÉQUIPE", Style = "Gold", Position = UDim2.fromOffset(16, 466), Size = UDim2.new(1, -32, 0, 60), TextSize = 22,
-		Parent = teamPanel, Callback = function()
-			if locked or #picked ~= data.Size then
+	confirm.Activated:Connect(function()
+		if self.SelectLocked or #picked ~= data.Size then
+			return
+		end
+		UIKit.playSound("Click", 0.6, 1.1)
+		self.SelectLocked = true
+		confirmLabel.Text = "ÉQUIPE VALIDÉE"
+		refresh()
+		task.spawn(function()
+			local ok = self.Callbacks.Pick(table.clone(picked))
+			if token ~= self.Token then
 				return
 			end
-			locked = true
-			refresh()
-			task.spawn(function()
-				local ok = self.Callbacks.Pick(table.clone(picked))
-				if token ~= self.Token then
-					return
-				end
-				if ok then
-					summary.Text = summary.Text .. "\n<font color=\"#6EE68C\">✔ Équipe validée</font>"
-				else
-					locked = false
-					refresh()
-				end
-			end)
-		end })
+			if not ok then
+				self.SelectLocked = false
+				refresh()
+			end
+		end)
+	end)
 	refresh()
 	UIKit.focus(confirm)
 end
 
 function DuelScreen:OppReady()
 	if self.OppState and self.OppState.Parent then
-		self.OppState.Text = "✔ Ton adversaire est prêt !"
+		self.OppState.Text = "Ton adversaire est prêt !"
 		self.OppState.TextColor3 = GREEN
 	end
 end
@@ -622,30 +757,47 @@ function DuelScreen:BuildBattle()
 		local info = data[key]
 		local x = isMe and 300 or 800
 
-		-- Étiquette discrète du joueur : avatar, pseudo, une pastille par créature.
-		local tag = UIKit.new("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromOffset(x, 70),
-			Size = UDim2.fromOffset(260, 46), ZIndex = 62, Parent = stage })
-		avatarCircle(tag, info.UserId, 40, color, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0), ZIndex = 63 })
-		text(tag, info.Name, { Font = UIKit.Fonts.Bold, Position = UDim2.fromOffset(50, 2), Size = UDim2.new(1, -50, 0, 20),
-			TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 63 }, 18)
+		-- Encadré d'info façon jeu de monstres : l'adversaire en haut à gauche,
+		-- le tien en bas à droite (nom, niveau, PV, énergie, statuts, équipe).
+		local box = UIKit.new("Frame", { AnchorPoint = isMe and Vector2.new(1, 0) or Vector2.new(0, 0),
+			Position = isMe and UDim2.fromOffset(1090, 404) or UDim2.fromOffset(10, 70), Size = UDim2.fromOffset(350, 122),
+			BackgroundColor3 = INK, BackgroundTransparency = 0.12, ZIndex = 62, Parent = stage })
+		UIKit.corner(box, 16)
+		UIKit.stroke(box, color, 3, 0)
+		avatarCircle(box, info.UserId, 26, color, { Position = UDim2.fromOffset(12, 8), ZIndex = 63 })
+		text(box, info.Name, { Font = UIKit.Fonts.Bold, TextColor3 = Color3.fromRGB(200, 190, 225), Position = UDim2.fromOffset(46, 10),
+			Size = UDim2.fromOffset(170, 20), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 63 }, 15)
 		local dots = {}
 		for i = 1, #info.Deck do
-			local d = UIKit.new("Frame", { Position = UDim2.fromOffset(50 + (i - 1) * 20, 28), Size = UDim2.fromOffset(12, 12), BackgroundColor3 = elementOf(info.Deck[i].Id).Color,
-				ZIndex = 63, Parent = tag })
+			local d = UIKit.new("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.fromOffset(338 - (#info.Deck - i) * 20, 20), Size = UDim2.fromOffset(12, 12),
+				BackgroundColor3 = elementOf(info.Deck[i].Id).Color, ZIndex = 63, Parent = box })
 			UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = d })
 			dots[i] = d
 		end
+		local nameLabel = text(box, "", { Font = UIKit.Fonts.Title, RichText = true, Position = UDim2.fromOffset(12, 36), Size = UDim2.fromOffset(240, 28),
+			TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 63 }, 24)
+		local levelLabel = text(box, "", { Font = UIKit.Fonts.Title, TextColor3 = GOLD, AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromOffset(338, 36),
+			Size = UDim2.fromOffset(90, 28), TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 63 }, 22)
+		text(box, "PV", { Font = UIKit.Fonts.Title, TextColor3 = GOLD, Position = UDim2.fromOffset(12, 68), Size = UDim2.fromOffset(28, 16), ZIndex = 63 }, 15)
+		local hp = hpBar(box, { Position = UDim2.fromOffset(44, 70), Size = UDim2.fromOffset(294, 12), ZIndex = 63 })
+		hp.Label.AnchorPoint = Vector2.new(1, 0)
+		hp.Label.Position = UDim2.fromOffset(338, 88)
+		hp.Label.Size = UDim2.fromOffset(110, 22)
+		hp.Label.TextXAlignment = Enum.TextXAlignment.Right
 		-- Jauge d'énergie : un losange par point.
 		local pips = {}
 		for i = 1, ENERGY_MAX do
-			local pip = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(132 + (i - 1) * 20, 34), Size = UDim2.fromOffset(11, 11),
-				Rotation = 45, BackgroundColor3 = ENERGY, BackgroundTransparency = 0.85, ZIndex = 63, Parent = tag })
+			local pip = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(20 + (i - 1) * 18, 100), Size = UDim2.fromOffset(11, 11),
+				Rotation = 45, BackgroundColor3 = ENERGY, BackgroundTransparency = 0.85, ZIndex = 63, Parent = box })
 			UIKit.stroke(pip, ENERGY, 1, 0.3)
 			pips[i] = pip
 		end
 		-- Statuts de la créature active (icône + tours restants).
-		local statusLabel = text(stage, "", { RichText = true, Font = UIKit.Fonts.Bold, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromOffset(x, CARD_Y + 194),
-			Size = UDim2.fromOffset(260, 22), ZIndex = 64 }, 17)
+		local statusLabel = text(box, "", { RichText = true, Font = UIKit.Fonts.Bold, Position = UDim2.fromOffset(110, 90), Size = UDim2.fromOffset(120, 20),
+			TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 64 }, 16)
+		local guard = text(box, "EN GARDE", { AnchorPoint = Vector2.new(isMe and 1 or 0, 1), Position = UDim2.fromOffset(isMe and 340 or 10, -6), Size = UDim2.fromOffset(110, 22),
+			BackgroundTransparency = 0, BackgroundColor3 = Color3.fromRGB(70, 150, 255), Visible = false, ZIndex = 75 }, 13)
+		UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = guard })
 
 		-- Halo coloré derrière la carte (s'illumine pendant son tour).
 		local aura = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(x, CARD_Y), Size = UDim2.fromOffset(300, 300),
@@ -655,13 +807,10 @@ function DuelScreen:BuildBattle()
 			Parent = aura })
 		local slot = UIKit.new("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(x, CARD_Y),
 			Size = UDim2.fromOffset(210, 292), ZIndex = 64, Parent = stage })
-		local hp = hpBar(stage, { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromOffset(x, CARD_Y + 160), Size = UDim2.fromOffset(220, 12), ZIndex = 64 })
-		local guard = text(stage, "EN GARDE", { AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromOffset(x, CARD_Y - 150), Size = UDim2.fromOffset(120, 24),
-			BackgroundTransparency = 0, BackgroundColor3 = Color3.fromRGB(70, 150, 255), Visible = false, ZIndex = 75 }, 13)
-		UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = guard })
 
 		self.Sides[key] = { Slot = slot, Aura = aura, Bar = hp, Dots = dots, Guard = guard, Active = 0, Color = color, BaseX = x, Deck = info.Deck,
-			Offset = Vector2.zero, Pips = pips, Status = statusLabel, Energy = 0 }
+			Offset = Vector2.zero, Pips = pips, Status = statusLabel, Energy = 0,
+			Box = box, NameLabel = nameLabel, LevelLabel = levelLabel }
 	end
 
 	-- Indicateur de tour (haut, centre) avec minuteur intégré.
@@ -687,10 +836,11 @@ function DuelScreen:BuildBattle()
 	self.Tray = tray
 	self.Buttons = {}
 	local defs = {
-		{ "Attack", "ATTAQUE", "⚔", Color3.fromRGB(255, 110, 85), 210 },
-		{ "Defend", "GARDE", "◈", Color3.fromRGB(80, 165, 255), 210 },
-		{ "Ability", "CAPACITÉ", "✦", GOLD, 330 },
-		{ "Switch", "CHANGER", "⇄", Color3.fromRGB(150, 120, 230), 210 },
+		{ "Attack", "ATTAQUE", "◈", Color3.fromRGB(255, 110, 85), 190 },
+		{ "Defend", "GARDE", "◈", Color3.fromRGB(80, 165, 255), 190 },
+		{ "Ability", "CAPACITÉ", "★", GOLD, 300 },
+		{ "Switch", "CHANGER", "⇄", Color3.fromRGB(150, 120, 230), 190 },
+		{ "Forfeit", "ABANDON", "⚑", Color3.fromRGB(150, 140, 165), 150 },
 	}
 	for i, def in ipairs(defs) do
 		local button = UIKit.new("TextButton", { Text = "", AutoButtonColor = false, Size = UDim2.fromOffset(def[5], 84), BackgroundColor3 = Color3.new(1, 1, 1),
@@ -848,6 +998,9 @@ function DuelScreen:RefreshActions()
 			benchCount += 1
 		end
 	end
+	if not self.ConfirmForfeit then
+		self.Buttons.Forfeit.Detail.Text = "Quitter le combat"
+	end
 	self.Buttons.Switch.Detail.Text = benchCount > 0 and string.format("%d en réserve · prend le tour", benchCount) or "Aucune réserve"
 	self.CanAbility = affordable
 	self.CanSwitch = benchCount > 0
@@ -936,6 +1089,21 @@ function DuelScreen:Choose(action: string)
 		self:OpenBench()
 		return
 	end
+	if action == "Forfeit" then
+		-- Deux clics : on confirme avant d'abandonner.
+		if not self.ConfirmForfeit then
+			self.ConfirmForfeit = true
+			b.Detail.Text = '<font color="#FF8080">Encore une fois pour confirmer</font>'
+			task.delay(3, function()
+				self.ConfirmForfeit = nil
+				if b.Detail.Parent then
+					b.Detail.Text = "Quitter le combat"
+				end
+			end)
+			return
+		end
+		self.ConfirmForfeit = nil
+	end
 	self:SetButtons(false)
 	self:ShowTray(false)
 	self.Callbacks.Act(action)
@@ -953,7 +1121,8 @@ function DuelScreen:UpdateSide(key: string, deck)
 	end
 	if activeIndex ~= s.Active then
 		local previous = s.View
-		local previousFighter = s.Active > 0 and deck[s.Active]
+		-- Pas encore de créature active au premier affichage : `nil`, pas `false`.
+		local previousFighter = if s.Active > 0 then deck[s.Active] else nil
 		local knockedOut = previousFighter == nil or previousFighter.HP <= 0
 		s.Active = activeIndex
 		if previous then
@@ -977,7 +1146,7 @@ function DuelScreen:UpdateSide(key: string, deck)
 		local f = deck[activeIndex]
 		local c = f and card(f.Id)
 		if self.Arena then
-			self.Arena:SetActive(key, c and c.Id, knockedOut)
+			self.Arena:SetActive(key, c and c.Id, knockedOut, f and f.Level)
 		end
 		if c then
 			local view = CardView.create(c, { Detailed = true, Parent = s.Slot })
@@ -993,6 +1162,16 @@ function DuelScreen:UpdateSide(key: string, deck)
 		end
 	end
 	local f = deck[activeIndex]
+	local c = f and card(f.Id)
+	if c then
+		local _, stage = CardsData.stageOf(f.Level or 1)
+		s.NameLabel.Text = string.format('<font color="#%s">%s</font>%s', CardsData.Elements[c.Element].Color:ToHex(),
+			CardsData.displayName(c, f.Level), stage.Star and (' <font color="#FFD778">' .. stage.Star .. "</font>") or "")
+		s.LevelLabel.Text = "Nv. " .. tostring(f.Level or 1)
+	elseif s.NameLabel then
+		s.NameLabel.Text = ""
+		s.LevelLabel.Text = ""
+	end
 	if f then
 		setBar(s.Bar, f.HP / f.MaxHP)
 		s.Bar.Label.Text = string.format("%d / %d", f.HP, f.MaxHP)
@@ -1162,7 +1341,7 @@ function DuelScreen:Resolve(data)
 			UIKit.playSound("Click", 0.6, 0.8)
 		elseif e.Action == "Ability" and not e.Hits then
 			-- Capacité sans attaque : soin, bouclier, miroir...
-			self:Say("✦ " .. string.upper(e.Ability or ""), GOLD, 36)
+			self:Say("★ " .. string.upper(e.Ability or ""), GOLD, 36)
 			UIKit.playSound("Charge", 0.6, 1.1)
 			ring(actor.Slot, GOLD)
 			if arena then
@@ -1191,7 +1370,7 @@ function DuelScreen:Resolve(data)
 			-- Attaque ou capacité offensive, mise en scène dans le Colisée 3D.
 			cinematic = true
 			if e.Action == "Ability" then
-				self:Say("✦ " .. string.upper(e.Ability or ""), GOLD, 40)
+				self:Say("★ " .. string.upper(e.Ability or ""), GOLD, 40)
 			end
 			task.spawn(function()
 				local ok, err = pcall(arena.Attack, arena, actorKey, e)
@@ -1303,6 +1482,42 @@ function DuelScreen:Result(data)
 		or (draw and "+60 ◆" or (win and "+150 ◆" or "+30 ◆ pour ta participation"))
 	text(banner, data.Reason, { Font = UIKit.Fonts.Bold, Position = UDim2.fromOffset(20, 130), Size = UDim2.new(1, -40, 0, 30), ZIndex = 97 }, 22)
 	text(banner, rewardText, { TextColor3 = GOLD, Position = UDim2.fromOffset(20, 170), Size = UDim2.new(1, -40, 0, 40), ZIndex = 97 }, 30)
+	-- Expérience de chaque créature : gain, montée de niveau, évolution.
+	local gains = type(data.XP) == "table" and data.XP or {}
+	if #gains > 0 then
+		banner.Size = UDim2.fromOffset(640, 230 + #gains * 44)
+		local evolved = false
+		for i, g in ipairs(gains) do
+			local c = card(g.Id)
+			if c then
+				local y = 216 + (i - 1) * 44
+				local row = UIKit.new("Frame", { Position = UDim2.fromOffset(40, y), Size = UDim2.fromOffset(560, 38), BackgroundColor3 = Color3.new(0, 0, 0),
+					BackgroundTransparency = 0.6, ZIndex = 97, Parent = banner })
+				UIKit.corner(row, 10)
+				local lvlUp = g.Level > g.OldLevel
+				local suffix = g.Evolved and '  <font color="#FFD778">★ ÉVOLUTION !</font>'
+					or (lvlUp and string.format('  <font color="#7CF59A">▲ Nv. %d</font>', g.Level) or "")
+				text(row, string.format('<font color="#%s">%s</font>  Nv. %d%s', CardsData.Elements[c.Element].Color:ToHex(),
+					CardsData.displayName(c, g.Level), g.Level, suffix), { Font = UIKit.Fonts.Bold, RichText = true, Position = UDim2.fromOffset(12, 0),
+					Size = UDim2.new(1, -150, 1, 0), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 98 }, 18)
+				text(row, "+" .. g.Gain .. " XP", { Font = UIKit.Fonts.Title, TextColor3 = ENERGY, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 0),
+					Size = UDim2.new(0, 130, 1, 0), TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 98 }, 20)
+				-- Barre vers le niveau suivant.
+				local from, to = CardsData.xpForLevel(g.Level), CardsData.xpForLevel(g.Level + 1)
+				local ratio = g.Level >= CardsData.Progression.MaxLevel and 1 or math.clamp((g.XP - from) / math.max(1, to - from), 0, 1)
+				local track = UIKit.new("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 12, 1, -3), Size = UDim2.new(1, -24, 0, 4),
+					BackgroundColor3 = Color3.fromRGB(40, 32, 60), BorderSizePixel = 0, ZIndex = 98, Parent = row })
+				local fill = UIKit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = ENERGY, BorderSizePixel = 0, ZIndex = 99, Parent = track })
+				UIKit.tween(fill, 1.2, { Size = UDim2.fromScale(ratio, 1) }, SMOOTH)
+				evolved = evolved or g.Evolved
+			end
+		end
+		if evolved then
+			task.delay(0.6, function()
+				UIKit.playSound("Reveal", 0.8, 1.4)
+			end)
+		end
+	end
 	local scale = UIKit.new("UIScale", { Scale = 0.3, Parent = banner })
 	UIKit.tween(scale, 0.45, { Scale = 1 }, Enum.EasingStyle.Back)
 	UIKit.playSound("Reveal", 0.7, win and 1.2 or 0.7)
