@@ -27,7 +27,7 @@ to API Services*. Sans ça, le jeu fonctionne mais les profils ne sont pas sauve
 - **Boosters** : tirage pondéré côté serveur, animation de révélation selon la
   rareté, remboursement des doublons.
 - **Économie & sauvegarde** (`DataService`) : gemmes, cadeau toutes les 20 h,
-  revenu passif, profils persistés via DataStore.
+  profils persistés via DataStore (pas de revenu passif : les gemmes se gagnent en jouant).
 - **Bestiaire** : grille filtrable par rareté, cartes non découvertes masquées,
   vue détaillée.
 

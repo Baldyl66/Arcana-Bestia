@@ -22,9 +22,6 @@
       "Rigs": {
         "$path": "src/shared/Rigs"
       },
-      "Voxels": {
-        "$path": "src/shared/Voxels"
-      },
       "Remotes": {
         "$className": "Folder",
         "OpenBooster": { "$className": "RemoteFunction" },

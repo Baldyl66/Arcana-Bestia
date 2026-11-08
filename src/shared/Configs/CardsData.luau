@@ -41,8 +41,6 @@ CardsData.Economy = {
 		{ Coins = 400, Label = "400 ◆" },
 		{ Coins = 500, MinRarity = 3, Label = "500 ◆ + Rare+" },
 	},
-	PassiveIncome = 15,
-	PassiveInterval = 60,
 	DuplicateRefund = {
 		Commun = 10,
 		PeuCommun = 20,

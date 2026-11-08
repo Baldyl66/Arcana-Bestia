@@ -123,19 +123,8 @@ DataService.Changed:Connect(function(player)
 	ProfileChanged:FireClient(player, DataService.Snapshot(player))
 end)
 
--- Revenu passif pour récompenser le temps de jeu.
-task.spawn(function()
-	while true do
-		task.wait(Economy.PassiveInterval)
-		for _, player in ipairs(Players:GetPlayers()) do
-			local profile = DataService.Get(player)
-			if profile then
-				profile.Coins += Economy.PassiveIncome
-				DataService.MarkChanged(player)
-			end
-		end
-	end
-end)
+-- (Pas de revenu passif : les gemmes se gagnent en jouant — quêtes, duels,
+-- récompenses du jour — et non en restant connecté.)
 
 Players.PlayerRemoving:Connect(function(player)
 	lastOpenAt[player] = nil

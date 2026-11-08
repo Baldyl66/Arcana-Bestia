@@ -458,8 +458,7 @@ function Panels.help(parent: Instance)
 			text(row, s[2], { Font = UIKit.Fonts.Body, TextWrapped = true, Position = UDim2.fromOffset(78, 34), Size = UDim2.new(1, -92, 0, 36),
 				TextYAlignment = Enum.TextYAlignment.Top }, 15)
 		end
-		paragraph(string.format("Tu gagnes aussi %d gemmes chaque minute passée en jeu, et une récompense chaque jour de connexion (série de 7 jours).",
-			economy.PassiveIncome), 10)
+		paragraph("Les gemmes se gagnent en jouant : quêtes des villageois, duels, défi du jour de Rhéa et récompense de connexion (série de 7 jours).", 10)
 	end
 	-- Raretés : chances de tirage et remboursement des doublons.
 	pages[2] = function()
