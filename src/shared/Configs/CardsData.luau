@@ -282,6 +282,13 @@ local IMAGES = {
 	solaryx = "rbxassetid://83081529632941",
 	glacimar = "rbxassetid://85416088782367",
 	ombrelin = "rbxassetid://84235419248305",
+	cendrebouc = "rbxassetid://113319445951432",
+	galetor = "rbxassetid://137370494523928",
+	etincelot = "rbxassetid://131089497141779",
+	braisille = "rbxassetid://111611256914450",
+	gouttelin = "rbxassetid://132766251796257",
+	lucioline = "rbxassetid://117482103712363",
+	mousseron = "rbxassetid://82959470319394",
 }
 
 CardsData.CardById = {}
