@@ -28,16 +28,19 @@ function MainMenu.new(parent: Instance, callbacks: Callbacks)
 	self.Root = root
 
 	-- Vignettes pour la lisibilité du texte sur la scène 3D.
+	-- Elles débordent largement de l'écran : sur téléphone, la zone sûre
+	-- (encoche) laissait une bande non couverte et une coupure nette.
 	local left = UIKit.new("Frame", {
 		BackgroundColor3 = UIKit.Colors.Background,
-		Size = UDim2.fromScale(0.75, 1),
+		Position = UDim2.new(-0.2, 0, -0.2, 0),
+		Size = UDim2.fromScale(0.9, 1.4),
 		BorderSizePixel = 0,
 		Parent = root,
 	})
 	UIKit.new("UIGradient", {
 		Transparency = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 0.05),
-			NumberSequenceKeypoint.new(0.55, 0.45),
+			NumberSequenceKeypoint.new(0, 0.15),
+			NumberSequenceKeypoint.new(0.45, 0.4),
 			NumberSequenceKeypoint.new(1, 1),
 		}),
 		Parent = left,
@@ -45,14 +48,14 @@ function MainMenu.new(parent: Instance, callbacks: Callbacks)
 	local bottom = UIKit.new("Frame", {
 		BackgroundColor3 = Color3.new(0, 0, 0),
 		AnchorPoint = Vector2.new(0, 1),
-		Position = UDim2.fromScale(0, 1),
-		Size = UDim2.fromScale(1, 0.35),
+		Position = UDim2.new(-0.2, 0, 1.2, 0),
+		Size = UDim2.fromScale(1.4, 0.5),
 		BorderSizePixel = 0,
 		Parent = root,
 	})
 	UIKit.new("UIGradient", {
 		Rotation = -90,
-		Transparency = NumberSequence.new(0.3, 1),
+		Transparency = NumberSequence.new(0.45, 1),
 		Parent = bottom,
 	})
 
@@ -224,7 +227,9 @@ function MainMenu:Layout()
 		return
 	end
 	-- Compact uniquement sur les écrans vraiment bas (téléphone en paysage).
-	local compact = viewport.Y < 500
+	-- Même disposition partout (le mode compact des téléphones est abandonné :
+	-- le bloc est simplement mis à l'échelle).
+	local compact = false
 	if compact ~= self.Compact then
 		self.Compact = compact
 		self.Description.Visible = not compact
@@ -272,7 +277,8 @@ function MainMenu:Layout()
 	if self.Showing then
 		self.Content.Position = self.ContentPosition
 	end
-	local share = compact and 0.68 or 0.72
+	-- Sur un écran bas (téléphone), le bloc occupe un peu plus de hauteur.
+	local share = if viewport.Y < 500 then 0.86 else 0.72
 	local scale = math.min((viewport.Y - inset) * share / contentH, viewport.X * 0.45 / 560)
 	self.ContentScale.Scale = math.clamp(scale, 0.4, 1) * (UIKit.Settings.UIScale or 1)
 end
