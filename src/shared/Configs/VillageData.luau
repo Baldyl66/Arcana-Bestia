@@ -46,9 +46,10 @@ VillageData.Layout = {
 	-- Sud : Grand-Place du marché.
 	MarketSquare = rect(-112, 140, 112, 318),
 	Fountain = Vector2.new(0, 212),
-	-- Ouest : arènes de l'ouest (ancien quartier des artisans), forge de Borin au nord.
+	-- Ouest : arènes de l'ouest (ancien quartier des artisans), sur tout le bloc.
 	ArtisanYard = rect(-322, -112, -140, 112),
-	Forge = Vector2.new(-262, -98),
+	-- Forge de Borin : dans le quartier des maisons (sud-ouest), au sud de la rue.
+	Forge = Vector2.new(-177, 246),
 	-- Nord-est : caserne (logis des gardes, entraînement, écurie).
 	BarracksYard = rect(140, -322, 322, -234),
 	TrainingYard = rect(140, -210, 240, -140),
@@ -101,8 +102,12 @@ VillageData.Layout = {
 VillageData.Arena = {
 	Length = 84, -- le long de l'axe des duellistes (bouts à ±42)
 	Width = 38, -- en travers (parapets à ±19)
-	Spacing = 46, -- entre les centres de deux arènes voisines
+	Spacing = 90, -- entre les centres de deux arènes voisines (≈ 52 studs libres entre elles)
 	FloorHeight = 1.5, -- dessus du sol de combat au-dessus du sol extérieur
+	-- Dallage de la zone : tout le bloc de la ville (182 × 280 studs, marges comprises).
+	ZoneFront = 87, -- vers l'entrée (estrade de Varek, enseigne)
+	ZoneBack = 87, -- vers le fond (étendards)
+	ZoneHalfWidth = 132, -- en travers, de part et d'autre du centre
 }
 local slots = nil
 function VillageData.arenaSlots(): { any }

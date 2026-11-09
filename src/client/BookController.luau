@@ -895,12 +895,30 @@ function BookController.Init(onOpen: () -> (), onClose: () -> (), onAction: ((st
 	closeCallback = onClose
 	actionCallback = onAction
 	RunService:BindToRenderStep("ArcanaBookAnimation", Enum.RenderPriority.Camera.Value + 1, update)
-	ContextActionService:BindAction("ArcanaBookToggle", function(_, inputState)
+	-- Invites d'interaction affichées (Parler, Ouvrir un booster...) qui
+	-- utilisent la touche E : tant qu'il y en a une, E est pour elle, pas pour
+	-- le livre (sinon le livre s'ouvrait par-dessus le dialogue).
+	local ProximityPromptService = game:GetService("ProximityPromptService")
+	local promptsWithE: { [ProximityPrompt]: boolean } = {}
+	ProximityPromptService.PromptShown:Connect(function(prompt)
+		if prompt.KeyboardKeyCode == Enum.KeyCode.E then
+			promptsWithE[prompt] = true
+		end
+	end)
+	ProximityPromptService.PromptHidden:Connect(function(prompt)
+		promptsWithE[prompt] = nil
+	end)
+	ContextActionService:BindAction("ArcanaBookToggle", function(_, inputState, input)
 		if inputState == Enum.UserInputState.Begin then
 			-- Fiche d'une carte ouverte : E ferme seulement la fiche, pas le livre.
 			if CardDetail.isOpen() then
 				CardDetail.close()
 				return Enum.ContextActionResult.Sink
+			end
+			-- Livre fermé et invite affichée : E déclenche l'invite.
+			local bookOut = player.Character ~= nil and player.Character:FindFirstChildOfClass("Tool") ~= nil
+			if input.KeyCode == Enum.KeyCode.E and not bookOut and next(promptsWithE) ~= nil then
+				return Enum.ContextActionResult.Pass
 			end
 			equipAndToggle()
 			return Enum.ContextActionResult.Sink

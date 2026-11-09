@@ -513,8 +513,10 @@ function ArenaBuilder.buildZone(zone, parent: Instance, groundY: number): Model
 		inscription(borne, zone.Id .. " " .. i, OR_CLAIR)
 	end
 	-- Étendards au fond de la zone, derrière les arènes
+	-- Entre les arènes et aux deux bords de la zone.
+	local positions = { -(DIM.Spacing + DIM.Width / 2 + 8), -DIM.Spacing / 2, DIM.Spacing / 2, DIM.Spacing + DIM.Width / 2 + 8 }
 	for i = -2, 1 do
-		local x = (i + 0.5) * 26 -- entre les sorties des arènes
+		local x = positions[i + 3]
 		local base = CFrame.new(x, 0, HL + 9)
 		part(m, { Name = "Socle", Size = Vector3.new(2.2, 1.2, 2.2), CFrame = base * CFrame.new(0, 0.6, 0), Color = PIERRE_SOMBRE, Material = Enum.Material.Granite })
 		part(m, { Name = "Mat", Shape = Enum.PartType.Cylinder, Size = Vector3.new(16, 0.45, 0.45), CFrame = vertical(base * CFrame.new(0, 8.6, 0)), Color = OR, Material = Enum.Material.Metal })

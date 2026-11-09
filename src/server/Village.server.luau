@@ -1222,10 +1222,10 @@ for _, x in ipairs({ 150, -150 }) do
 end
 
 ---------------------------------------------------------------------------
--- Forge de Borin : au nord des arènes de l'ouest (l'ancien quartier des
--- artisans laisse la place aux arènes)
+-- Forge de Borin : dans le quartier des maisons, tournée vers la rue (les
+-- arènes de l'ouest occupent tout l'ancien quartier des artisans)
 ---------------------------------------------------------------------------
-local forgeCf = at(L.Forge.X, L.Forge.Y, SOUTH)
+local forgeCf = at(L.Forge.X, L.Forge.Y, NORTH)
 do
 	local yard = model("ForgeYard", props)
 	forge(forgeCf, villageFolder)
@@ -1235,8 +1235,8 @@ do
 	crate(forgeCf * CFrame.new(-12, 0, -6), yard)
 	barrel(forgeCf * CFrame.new(-9.5, 1, -7), yard)
 	barrel(forgeCf * CFrame.new(12, 1, -6), yard)
-	spot(-300, -40)
-	spot(-160, 95)
+	spot(-205, 262)
+	spot(-152, 232)
 end
 
 ---------------------------------------------------------------------------
@@ -1406,8 +1406,8 @@ do
 			local rel = p - zone.Center
 			local along = rel:Dot(zone.Gate)
 			local across = math.abs(rel.X * -zone.Gate.Y + rel.Y * zone.Gate.X)
-			local inZone = along <= VillageData.Arena.Length / 2 + 24 + 4 and along >= -(VillageData.Arena.Length / 2 + 14 + 4)
-				and across <= VillageData.Arena.Spacing + VillageData.Arena.Width / 2 + 6 + 4
+			local A = VillageData.Arena
+			local inZone = along <= A.ZoneFront + 4 and along >= -(A.ZoneBack + 4) and across <= A.ZoneHalfWidth + 4
 			if inZone or (p - (zone.Center + zone.Gate * L.ColosseumRadius)).Magnitude < 50 then
 				return false
 			end

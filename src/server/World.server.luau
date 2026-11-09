@@ -128,9 +128,10 @@ local SURFACE_OFFSET = RES / 2
 -- 8 = le dallage exact, plus pour garder le sol plat ou écarter les arbres.
 local ARENA_ZONES = VillageData.arenaZones()
 local ARENA = VillageData.Arena
-local ZONE_FRONT = ARENA.Length / 2 + 24 -- côté entrée : estrade de Varek et enseigne
-local ZONE_BACK = ARENA.Length / 2 + 14 -- au fond : étendards
-local ZONE_HALF_WIDTH = ARENA.Spacing + ARENA.Width / 2 + 6 -- les trois arènes côte à côte
+-- Le dallage couvre tout le bloc de la ville (dimensions dans VillageData.Arena).
+local ZONE_FRONT = ARENA.ZoneFront
+local ZONE_BACK = ARENA.ZoneBack
+local ZONE_HALF_WIDTH = ARENA.ZoneHalfWidth
 local function nearArenas(x: number, z: number, margin: number): boolean
 	local extra = margin - 8
 	for _, zone in ipairs(ARENA_ZONES) do
