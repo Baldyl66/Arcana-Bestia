@@ -279,12 +279,18 @@ function DailyRewards.new(parent: Instance, claim: () -> ())
 
 	-- Mise en page selon la place disponible (PC, tablette, téléphone, console).
 	local compact: boolean? = nil
+	local windowScale = panel.Window:FindFirstChildOfClass("UIScale")
 	local function layout()
-		local size = area.AbsoluteSize
+		-- Taille « virtuelle » de la zone : la fenêtre est déjà réduite par son
+		-- UIScale pour tenir à l'écran ; sans cette correction, les cartes étaient
+		-- réduites deux fois (minuscules sur téléphone).
+		local s = windowScale and windowScale.Scale or 1
+		local size = area.AbsoluteSize / math.max(s, 0.01)
 		if size.X <= 0 or size.Y <= 0 then
 			return
 		end
-		local wantCompact = size.X < 760 or size.X / size.Y < 2.2
+		-- Même disposition sur toutes les plateformes : une rangée de 7 jours.
+		local wantCompact = false
 		if wantCompact ~= compact then
 			compact = wantCompact
 			rowB.Visible = compact
@@ -306,6 +312,9 @@ function DailyRewards.new(parent: Instance, claim: () -> ())
 		end
 	end
 	area:GetPropertyChangedSignal("AbsoluteSize"):Connect(layout)
+	if windowScale then
+		windowScale:GetPropertyChangedSignal("Scale"):Connect(layout)
+	end
 	task.defer(layout)
 
 	panel.ClaimButton = claimButton
