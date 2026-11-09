@@ -1491,19 +1491,13 @@ for d = 140, 320, 30 do
 	if d < 230 then
 		lampPost(at(11, -d), props)
 	end
-	-- Avenue ouest : elle s'arrête au parvis des arènes.
-	if d < 165 then
-		lampPost(at(-d, -11), props)
-	end
+	-- Avenue ouest : pas de lampadaires à l'entrée des arènes (le panneau s'y dresse, comme à l'est).
 	-- Côté opposé de chaque avenue.
 	if not nearFountain then
 		lampPost(at(11, d), props)
 	end
 	if d < 230 then
 		lampPost(at(-11, -d), props)
-	end
-	if d < 165 then
-		lampPost(at(-d, 11), props)
 	end
 end
 -- Avenue est : pas de lampadaires devant l'entrée du Colisée.
@@ -2135,7 +2129,8 @@ local npcSpots = {
 local function varekSpot(c: Vector2, gateDeg: number): CFrame
 	local gate = math.rad(gateDeg)
 	local outward = Vector3.new(math.cos(gate), 0, math.sin(gate))
-	local pos = Vector3.new(c.X, L.Ground + 1.1, c.Y) + outward * (VillageData.Arena.Length / 2 + 10)
+	-- Sur son estrade, bien en avant des arènes (pas collé à l'arène centrale).
+	local pos = Vector3.new(c.X, L.Ground + 1.1, c.Y) + outward * (VillageData.Arena.Length / 2 + 24)
 	return CFrame.lookAt(pos, pos + outward)
 end
 npcSpots.Varek = varekSpot(L.Colosseum, L.ColosseumGate)

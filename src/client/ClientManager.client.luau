@@ -668,9 +668,20 @@ RunService.Heartbeat:Connect(function()
 		return
 	end
 	local world = workspace:FindFirstChild("World")
-	local npc = world and world:FindFirstChild("NPCs") and world.NPCs:FindFirstChild(currentNpc)
+	local npcs = world and world:FindFirstChild("NPCs")
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-	if npc and root and (npc:GetPivot().Position - root.Position).Magnitude > 20 then
+	if not (npcs and root) then
+		return
+	end
+	-- Plusieurs PNJ peuvent partager un id (un Varek par zone d'arènes) : on
+	-- mesure la distance au plus proche, sinon le dialogue se refermait aussitôt.
+	local nearest = math.huge
+	for _, npc in ipairs(npcs:GetChildren()) do
+		if npc:GetAttribute("NpcId") == currentNpc or npc.Name == currentNpc then
+			nearest = math.min(nearest, (npc:GetPivot().Position - root.Position).Magnitude)
+		end
+	end
+	if nearest ~= math.huge and nearest > 20 then
 		dialogue:Close()
 	end
 end)

@@ -491,21 +491,22 @@ function ArenaBuilder.buildZone(zone, parent: Instance, groundY: number): Model
 	origine = CFrame.lookAt(c, c + v3(zone.Gate, 0))
 	local m = Instance.new("Model")
 	m.Name = "Zone" .. zone.Id
-	local front = -(HL + 10) -- devant les marches des arènes
+	local front = -(HL + 24) -- estrade de Varek, bien en avant des arènes
+	local entree = -(DIM.ZoneFront - 4) -- panneau : bord de la zone, à l'arrivée de l'avenue
 	-- Estrade ronde de Varek
 	cylindre(m, CFrame.new(0, -1, front), 9, 1.6, { Name = "Estrade", Color = PIERRE, Material = Enum.Material.Granite })
 	decorative(cylindre(m, CFrame.new(0, 0.5, front), 9.4, 0.15, { Name = "Liseré", Color = OR, Material = Enum.Material.Metal }))
 	-- Grand panneau « Arènes des Champions » sur deux colonnes, au-dessus de l'allée
 	for _, x in { -9, 9 } do
-		part(m, { Name = "Colonne", Size = Vector3.new(1.6, 12, 1.6), CFrame = CFrame.new(x, 6, front + 4), Color = MARBRE, Material = Enum.Material.Marble })
-		deco(m, { Name = "Bague", Size = Vector3.new(1.8, 0.25, 1.8), CFrame = CFrame.new(x, 10, front + 4), Color = OR, Material = Enum.Material.Metal })
-		local gemme = deco(m, { Name = "Gemme", Size = Vector3.new(1.2, 1.2, 1.2), CFrame = CFrame.new(x, 12.9, front + 4) * CFrame.Angles(math.rad(45), 0, math.rad(35.26)), Color = ARCANE, Material = Enum.Material.Neon })
+		part(m, { Name = "Colonne", Size = Vector3.new(1.6, 12, 1.6), CFrame = CFrame.new(x, 6, entree), Color = MARBRE, Material = Enum.Material.Marble })
+		deco(m, { Name = "Bague", Size = Vector3.new(1.8, 0.25, 1.8), CFrame = CFrame.new(x, 10, entree), Color = OR, Material = Enum.Material.Metal })
+		local gemme = deco(m, { Name = "Gemme", Size = Vector3.new(1.2, 1.2, 1.2), CFrame = CFrame.new(x, 12.9, entree) * CFrame.Angles(math.rad(45), 0, math.rad(35.26)), Color = ARCANE, Material = Enum.Material.Neon })
 		lumiere(gemme, ARCANE, 16, 1.2)
 	end
-	local panneau = deco(m, { Name = "Enseigne", Size = Vector3.new(17, 2.4, 0.4), CFrame = CFrame.new(0, 10.8, front + 4), Color = Color3.fromRGB(62, 40, 112), Material = Enum.Material.Fabric })
+	local panneau = deco(m, { Name = "Enseigne", Size = Vector3.new(17, 2.4, 0.4), CFrame = CFrame.new(0, 10.8, entree), Color = Color3.fromRGB(62, 40, 112), Material = Enum.Material.Fabric })
 	inscription(panneau, "ARÈNES DES CHAMPIONS", OR_CLAIR)
-	deco(m, { Name = "Cadre", Size = Vector3.new(17.4, 0.25, 0.5), CFrame = CFrame.new(0, 12.1, front + 4), Color = OR, Material = Enum.Material.Metal })
-	deco(m, { Name = "Cadre", Size = Vector3.new(17.4, 0.25, 0.5), CFrame = CFrame.new(0, 9.5, front + 4), Color = OR, Material = Enum.Material.Metal })
+	deco(m, { Name = "Cadre", Size = Vector3.new(17.4, 0.25, 0.5), CFrame = CFrame.new(0, 12.1, entree), Color = OR, Material = Enum.Material.Metal })
+	deco(m, { Name = "Cadre", Size = Vector3.new(17.4, 0.25, 0.5), CFrame = CFrame.new(0, 9.5, entree), Color = OR, Material = Enum.Material.Metal })
 	-- Numéros des arènes devant chaque entrée
 	for i = 1, 3 do
 		local x = (i - 2) * DIM.Spacing -- même ordre que VillageData.arenaSlots (X local = travers)
