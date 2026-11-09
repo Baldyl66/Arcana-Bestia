@@ -46,9 +46,9 @@ VillageData.Layout = {
 	-- Sud : Grand-Place du marché.
 	MarketSquare = rect(-112, 140, 112, 318),
 	Fountain = Vector2.new(0, 212),
-	-- Ouest : quartier des artisans et forge de Borin.
+	-- Ouest : arènes de l'ouest (ancien quartier des artisans), forge de Borin au nord.
 	ArtisanYard = rect(-322, -112, -140, 112),
-	Forge = Vector2.new(-235, -42),
+	Forge = Vector2.new(-262, -98),
 	-- Nord-est : caserne (logis des gardes, entraînement, écurie).
 	BarracksYard = rect(140, -322, 322, -234),
 	TrainingYard = rect(140, -210, 240, -140),
@@ -70,7 +70,7 @@ VillageData.Layout = {
 		rect(-131, -131, 131, -119), rect(-131, 119, 131, 131), rect(-131, -131, -119, 131), rect(119, -131, 131, 131),
 		-- Avenues. La nord s'arrête à la porte du donjon ; la sud s'interrompt
 		-- autour de la fontaine pour qu'elle trône au milieu de la place.
-		rect(-8, -258, 8, -112), rect(-8, 112, 8, 182), rect(-8, 242, 8, 322), rect(-322, -8, -112, 8), rect(112, -8, 162, 8),
+		rect(-8, -258, 8, -112), rect(-8, 112, 8, 182), rect(-8, 242, 8, 322), rect(-162, -8, -112, 8), rect(112, -8, 162, 8),
 		-- Rues secondaires des coins (celle du sud-ouest est la rue des maisons).
 		rect(-322, -226, -131, -218), rect(131, -226, 322, -218), rect(-322, 187, -131, 195), rect(131, 218, 322, 226),
 	},
@@ -84,11 +84,67 @@ VillageData.Layout = {
 		-- Chapelle et square, au sud de la rue des maisons.
 		{ Vector2.new(-225, 195), Vector2.new(-225, 300), 6 },
 	},
-	-- Colisée des combats, à l'est.
+	-- Arènes des Champions : deux zones de trois arènes rectangulaires, l'une à l'est
+	-- (« Colosseum », nom historique), l'autre à l'ouest. Gate = direction de l'entrée
+	-- de la zone (degrés, vers la ville). Voir VillageData.arenaSlots().
 	Colosseum = Vector2.new(231, 0),
 	ColosseumRadius = 72,
 	ColosseumGate = 180,
+	ArenaWest = Vector2.new(-231, 0),
+	ArenaWestGate = 0,
 }
+
+-- Les six arènes de duel. Chaque arène est un rectangle allongé dans l'axe de la
+-- zone (on y entre par un bout) ; les duellistes se font face sur cet axe.
+-- Center / Axis en Vector2 (X, Z monde). Dimensions partagées par le serveur
+-- (construction, placement) et le client (Arena3D).
+VillageData.Arena = {
+	Length = 84, -- le long de l'axe des duellistes (bouts à ±42)
+	Width = 38, -- en travers (parapets à ±19)
+	Spacing = 46, -- entre les centres de deux arènes voisines
+	FloorHeight = 1.5, -- dessus du sol de combat au-dessus du sol extérieur
+}
+local slots = nil
+function VillageData.arenaSlots(): { any }
+	if slots then
+		return slots
+	end
+	slots = {}
+	local L = VillageData.Layout
+	for _, zone in ipairs({ { "Est", L.Colosseum, L.ColosseumGate }, { "Ouest", L.ArenaWest, L.ArenaWestGate } }) do
+		local g = math.rad(zone[3])
+		local gate = Vector2.new(math.cos(g), math.sin(g))
+		local across = Vector2.new(-gate.Y, gate.X)
+		for i = 1, 3 do
+			table.insert(slots, {
+				Id = zone[1] .. i,
+				Zone = zone[1],
+				Center = zone[2] + across * (i - 2) * VillageData.Arena.Spacing,
+				Axis = gate, -- axe des duellistes = axe de la zone
+				Gate = gate, -- côté de l'entrée de la zone
+			})
+		end
+	end
+	return slots
+end
+function VillageData.arenaSlot(id: string?): any?
+	for _, s in ipairs(VillageData.arenaSlots()) do
+		if s.Id == id then
+			return s
+		end
+	end
+	return nil
+end
+-- Zones d'arènes (centre, direction de l'entrée), pour le terrain et le décor.
+function VillageData.arenaZones(): { { Center: Vector2, Gate: Vector2, Id: string } }
+	local L = VillageData.Layout
+	local out = {}
+	for _, zone in ipairs({ { "Est", L.Colosseum, L.ColosseumGate }, { "Ouest", L.ArenaWest, L.ArenaWestGate } }) do
+		local g = math.rad(zone[3])
+		table.insert(out, { Id = zone[1], Center = zone[2], Gate = Vector2.new(math.cos(g), math.sin(g)) })
+	end
+	return out
+end
 VillageData.Layout.Half = VillageData.Layout.Wall + VillageData.Layout.WallThickness
 
 -- Diagonales : sentier naturel continu de la place au coin du boulevard,
@@ -104,14 +160,15 @@ end
 -- Quartiers, pour les indices de Pip.
 VillageData.Districts = {
 	{ Label = "la Grand-Place", Center = VillageData.Layout.Fountain },
-	{ Label = "le quartier des artisans", Center = VillageData.Layout.Forge },
+	{ Label = "la forge de Borin", Center = VillageData.Layout.Forge },
+	{ Label = "les arènes de l'ouest", Center = VillageData.Layout.ArenaWest },
 	{ Label = "la cour d'honneur du donjon", Center = Vector2.new(0, -190) },
 	{ Label = "la caserne", Center = Vector2.new(230, -230) },
 	{ Label = "les entrepôts", Center = Vector2.new(230, 175) },
 	{ Label = "le potager", Center = Vector2.new(230, 277) },
 	{ Label = "le quartier des maisons", Center = Vector2.new(-230, 230) },
 	{ Label = "la ferme", Center = Vector2.new(-230, -230) },
-	{ Label = "les abords du colisée", Center = VillageData.Layout.Colosseum },
+	{ Label = "les arènes de l'est", Center = VillageData.Layout.Colosseum },
 }
 
 -- Tenues : couleurs du corps (peau, haut, manches, pantalon) + vêtements en pièces.
@@ -312,7 +369,7 @@ VillageData.Places = {
 	forge = { Label = "La forge de Borin", Center = VillageData.Layout.Forge, Radius = 40 },
 	keep = { Label = "Le donjon", Center = Vector2.new(0, -230), Radius = 50 },
 	farm = { Label = "La ferme", Center = Vector2.new(-230, -260), Radius = 60 },
-	colosseum = { Label = "L'Arène des Champions", Center = VillageData.Layout.Colosseum, Radius = 60 },
+	colosseum = { Label = "Les Arènes des Champions", Center = VillageData.Layout.Colosseum, Radius = 60 },
 }
 
 -- Points de téléportation de la carte du monde (coordonnées x, z au sol).
@@ -324,9 +381,9 @@ VillageData.MapImage = ""
 VillageData.Teleports = {
 	{ Id = "arena", Label = "Autel arcanique", Pos = Vector2.new(0, 48), Side = "Right" },
 	{ Id = "market", Label = "Grand-Place", Pos = Vector2.new(0, 150), Side = "Bottom" },
-	{ Id = "forge", Label = "Artisans", Pos = Vector2.new(-150, 0), Side = "Left" },
+	{ Id = "forge", Label = "Arènes Ouest", Pos = Vector2.new(-150, 0), Side = "Left" },
 	{ Id = "keep", Label = "Donjon", Pos = Vector2.new(0, -150), Side = "Top" },
-	{ Id = "colosseum", Label = "Arène des Champions", Pos = Vector2.new(150, 0), Side = "Right" },
+	{ Id = "colosseum", Label = "Arènes Est", Pos = Vector2.new(150, 0), Side = "Right" },
 	{ Id = "barracks", Label = "Caserne", Pos = Vector2.new(150, -222), Side = "Right" },
 	{ Id = "houses", Label = "Maisons", Pos = Vector2.new(-150, 191), Side = "Left" },
 }

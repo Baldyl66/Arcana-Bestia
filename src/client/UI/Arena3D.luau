@@ -511,8 +511,11 @@ function Arena3D.new(data, shake: (number, number) -> (), opts)
 	self.Sides = {}
 	self.Hidden = {}
 
-	-- Sol de la piste : rayon vers le bas au centre du colisée.
-	local c = L.Colosseum
+	-- Arène du duel (une des six Arènes des Champions) : envoyée par le serveur.
+	local slot = VillageData.arenaSlot(data.Arena or opts.Arena or (not opts.Spectator and Players.LocalPlayer:GetAttribute("DuelArena")) or nil)
+	self.ArenaId = slot and slot.Id
+	-- Sol de la piste : rayon vers le bas au centre de l'arène.
+	local c = if slot then slot.Center else L.Colosseum
 	local top = Vector3.new(c.X, (L.Ground or 0) + 80, c.Y)
 	local params = RaycastParams.new()
 	local ignore = { self.Folder }
@@ -529,7 +532,7 @@ function Arena3D.new(data, shake: (number, number) -> (), opts)
 
 	-- Axe des duellistes (perpendiculaire aux portes), comme côté serveur.
 	local gate = math.rad(L.ColosseumGate)
-	local axis = Vector3.new(-math.sin(gate), 0, math.cos(gate))
+	local axis = if slot then Vector3.new(slot.Axis.X, 0, slot.Axis.Y) else Vector3.new(-math.sin(gate), 0, math.cos(gate))
 	local me = Players.LocalPlayer
 	local root = me.Character and me.Character:FindFirstChild("HumanoidRootPart")
 	local sign = 1
@@ -623,7 +626,8 @@ end
 -- éléments en jeu illuminés (local à ce joueur).
 function Arena3D:lightCircle(on: boolean)
 	local world = workspace:FindFirstChild("World")
-	local circle = world and world:FindFirstChild("Colosseum")
+	local arenas = world and world:FindFirstChild("Arenes")
+	local circle = (arenas and self.ArenaId and arenas:FindFirstChild(self.ArenaId)) or (world and world:FindFirstChild("Colosseum"))
 	if not circle then
 		return
 	end

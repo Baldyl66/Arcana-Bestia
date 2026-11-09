@@ -76,6 +76,7 @@ function Spectator:Start(data)
 	local ok, arena = pcall(Arena3D.new, {
 		Me = { UserId = data.MeInfo.UserId, Deck = data.Me },
 		Opp = { UserId = data.OppInfo.UserId, Deck = data.Opp },
+		Arena = data.Arena,
 	}, function() end, { Spectator = true, MeSign = 1 })
 	if not ok or not arena then
 		warn("[Spectator]", arena)

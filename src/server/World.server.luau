@@ -8,7 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local VillageData = require(ReplicatedStorage:WaitForChild("Configs"):WaitForChild("VillageData"))
 local ArcanaProps = require(game:GetService("ServerScriptService"):WaitForChild("ArcanaProps"))
-local ColosseumBuilder = require(game:GetService("ServerScriptService"):WaitForChild("ColosseumBuilder"))
+local ArenaBuilder = require(game:GetService("ServerScriptService"):WaitForChild("ArenaBuilder"))
 
 local Terrain = workspace.Terrain
 
@@ -122,6 +122,28 @@ end
 -- de la hauteur écrite : on compense pour que le sol soit pile à GROUND.
 local SURFACE_OFFSET = RES / 2
 
+-- Zones des Arènes des Champions (est et ouest) : sol plat et dallé, en
+-- RECTANGLE autour des trois arènes, de l'estrade de Varek (devant, côté
+-- entrée) jusqu'aux étendards (au fond). `margin` élargit le rectangle :
+-- 8 = le dallage exact, plus pour garder le sol plat ou écarter les arbres.
+local ARENA_ZONES = VillageData.arenaZones()
+local ARENA = VillageData.Arena
+local ZONE_FRONT = ARENA.Length / 2 + 24 -- côté entrée : estrade de Varek et enseigne
+local ZONE_BACK = ARENA.Length / 2 + 14 -- au fond : étendards
+local ZONE_HALF_WIDTH = ARENA.Spacing + ARENA.Width / 2 + 6 -- les trois arènes côte à côte
+local function nearArenas(x: number, z: number, margin: number): boolean
+	local extra = margin - 8
+	for _, zone in ipairs(ARENA_ZONES) do
+		local rel = Vector2.new(x, z) - zone.Center
+		local along = rel:Dot(zone.Gate) -- positif vers l'entrée de la zone
+		local across = math.abs(rel.X * -zone.Gate.Y + rel.Y * zone.Gate.X)
+		if along <= ZONE_FRONT + extra and along >= -ZONE_BACK - extra and across <= ZONE_HALF_WIDTH + extra then
+			return true
+		end
+	end
+	return false
+end
+
 local function heightAt(x: number, z: number): number
 	local reach = math.max(math.abs(x), math.abs(z))
 	local h = GROUND
@@ -137,7 +159,7 @@ local function heightAt(x: number, z: number): number
 			h += smoothstep(0, 140, d) * (25 + ridged(x, z) * 140 + fbm(x / 90, z / 90, 3, 2.2) * 20) + smoothstep(80, 220, d) * 30
 		end
 		-- Les chemins restent plats.
-		if onPath(x, z) or (Vector2.new(x, z) - L.Colosseum).Magnitude < L.ColosseumRadius + 10 then
+		if onPath(x, z) or nearArenas(x, z, 10) then
 			h = GROUND
 		end
 	end
@@ -155,18 +177,19 @@ local function surfaceMaterial(x: number, z: number, h: number, slope: number): 
 			end
 			return M.Pavement
 		end
-		if (Vector2.new(x, z) - L.Colosseum).Magnitude < L.ColosseumRadius + 8 then
+		if nearArenas(x, z, 8) then
 			return M.Pavement
 		end
 		-- Marge de 2 studs : la terre labourée va jusqu'aux clôtures, sans herbe qui dépasse.
 		if inRect(x, z, L.Fields, 2) or inRect(x, z, L.VegetableGarden, 2) then
 			return M.Mud
 		end
-		-- Grand-Place et cour d'honneur dallées ; rues et cour des artisans pavées.
+		-- Grand-Place et cour d'honneur dallées ; rues pavées. (L'ancienne cour des
+		-- artisans, pavée, a laissé place aux arènes de l'ouest : pelouse comme à l'est.)
 		if inRect(x, z, L.MarketSquare, 0) or inRect(x, z, L.HonorCourt, 0) then
 			return M.Pavement
 		end
-		if inRect(x, z, L.ArtisanYard, 0) or onPath(x, z) or onStonePath(x, z) then
+		if onPath(x, z) or onStonePath(x, z) then
 			return M.Cobblestone
 		end
 		if inYard(x, z) then
@@ -181,7 +204,7 @@ local function surfaceMaterial(x: number, z: number, h: number, slope: number): 
 	if onPath(x, z) then
 		return M.Ground
 	end
-	if (Vector2.new(x, z) - L.Colosseum).Magnitude < L.ColosseumRadius + 8 then
+	if nearArenas(x, z, 8) then
 		return M.Pavement
 	end
 	if h > 130 + math.noise(x / 40, z / 40, 1.7) * 15 and slope < 1.1 then
@@ -1001,24 +1024,16 @@ end
 -- L'Arène des Champions : colisée à arcades sur deux niveaux, piste de sable,
 -- gradins, loge d'honneur et grande porte face à l'avenue de l'Est.
 ---------------------------------------------------------------------------
--- « Le Cercle des Arcanes » : terrain de duel à ciel ouvert, construit par
--- ColosseumBuilder.luau : estrade de marbre à trois niveaux, grand cercle magique
--- (runes, hexagramme, sceau), six piliers élémentaires à cristal flottant,
--- pierres runiques en orbite (CircleFX), gradins, portiques en ruine, braseros,
--- végétation et entrée monumentale côté ColosseumGate.
--- Le modèle garde le nom « Colosseum » (repères et scripts existants).
--- Taille du cercle magique (rayon = 22 * CIRCLE_SCALE).
-local CIRCLE_SCALE = 1.5
-
-local function buildColosseum()
-	ColosseumBuilder.build({
-		parent = World,
-		center = L.Colosseum,
-		radius = L.ColosseumRadius,
-		gateDeg = L.ColosseumGate,
-		circleScale = CIRCLE_SCALE,
-		groundY = GROUND,
-	})
+-- Arènes des Champions : six arènes de duel rectangulaires (trois à l'est, trois
+-- à l'ouest, à la place de l'ancien quartier des artisans), une par duel en cours.
+-- Construites par ArenaBuilder.luau dans World.Arenes (emplacements :
+-- VillageData.arenaSlots()). Rien n'y flotte ni ne tourne.
+local function buildArenas()
+	local old = World:FindFirstChild("Colosseum")
+	if old then
+		old:Destroy()
+	end
+	ArenaBuilder.build(World, GROUND)
 end
 ---------------------------------------------------------------------------
 -- Prairie hors les murs : bosquets de sapins et de feuillus, hors chemins,
@@ -1108,7 +1123,7 @@ local function buildMeadow()
 				return false
 			end
 		end
-		return (Vector2.new(x, z) - L.Colosseum).Magnitude > L.ColosseumRadius + 16
+		return not nearArenas(x, z, 16)
 	end
 	for x = -L.Hills - 120, L.Hills + 120, 13 do
 		for z = -L.Hills - 120, L.Hills + 120, 13 do
@@ -1269,7 +1284,7 @@ buildArena()
 workspace:SetAttribute("WorldProgress", 0.75)
 buildRamparts()
 buildKeep()
-buildColosseum()
+buildArenas()
 buildMeadow()
 buildBounds()
 

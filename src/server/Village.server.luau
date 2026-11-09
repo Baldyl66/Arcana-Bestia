@@ -920,40 +920,6 @@ local function brazierPost(cf: CFrame, parent: Instance)
 	light(coals, Color3.fromRGB(255, 150, 70), 2, 20)
 end
 
--- Atelier ouvert : poteaux, toit en pente, établi, enclume ou outils, enseigne.
-local function shed(cf: CFrame, label: string, parent: Instance, sparks: boolean?)
-	local m = model("Workshop", parent)
-	for _, x in ipairs({ -7, 7 }) do
-		for _, z in ipairs({ -4.5, 4.5 }) do
-			part({ Size = Vector3.new(0.7, z < 0 and 8 or 9.5, 0.7), CFrame = cf * CFrame.new(x, z < 0 and 4 or 4.75, z), Material = M.Wood, Color = TIMBER, Parent = m })
-		end
-	end
-	part({ Size = Vector3.new(16, 0.5, 11), CFrame = cf * CFrame.new(0, 9, 0) * CFrame.Angles(math.rad(-8), 0, 0), Material = M.RoofShingles,
-		Color = Color3.fromRGB(110, 60, 45), Parent = m })
-	part({ Size = Vector3.new(10, 3, 2.4), CFrame = cf * CFrame.new(0, 1.5, 3), Material = M.WoodPlanks, Color = Color3.fromRGB(130, 90, 55), Parent = m })
-	part({ Size = Vector3.new(1.2, 2, 1.2), CFrame = cf * CFrame.new(-4, 1, -1), Material = M.Metal, Color = Color3.fromRGB(45, 45, 50), Parent = m })
-	local anvil = part({ Size = Vector3.new(2.6, 0.8, 1.2), CFrame = cf * CFrame.new(-4, 2.4, -1), Material = M.Metal, Color = Color3.fromRGB(60, 60, 66), Parent = m })
-	if sparks then
-		local e = Instance.new("ParticleEmitter")
-		e.Rate = 4
-		e.Lifetime = NumberRange.new(0.3, 0.6)
-		e.Speed = NumberRange.new(6, 10)
-		e.SpreadAngle = Vector2.new(60, 60)
-		e.Acceleration = Vector3.new(0, -25, 0)
-		e.EmissionDirection = Enum.NormalId.Top
-		e.LightEmission = 1
-		e.Size = NumberSequence.new(0.15, 0)
-		e.Color = ColorSequence.new(Color3.fromRGB(255, 200, 90))
-		e.Parent = anvil
-	end
-	for i = -2, 2 do
-		deco(part({ Size = Vector3.new(0.2, 2.4, 0.15), CFrame = cf * CFrame.new(i * 1.4, 4.6, 4.3) * CFrame.Angles(0, 0, math.rad(i * 6)), Material = M.Metal,
-			Color = Color3.fromRGB(180, 180, 190), Parent = m }))
-	end
-	hangingSign(cf * CFrame.new(8, 6.5, -4.5) * CFrame.Angles(0, math.pi / 2, 0), label, m)
-	return m
-end
-
 -- Râtelier d'armes.
 local function weaponRack(cf: CFrame, parent: Instance)
 	part({ Size = Vector3.new(6, 0.4, 0.6), CFrame = cf * CFrame.new(0, 3.4, 0), Material = M.Wood, Color = TIMBER, Parent = parent })
@@ -964,16 +930,6 @@ local function weaponRack(cf: CFrame, parent: Instance)
 		deco(part({ Size = Vector3.new(0.2, 3.6, 0.1), CFrame = cf * CFrame.new(k, 2.2, -0.25), Material = M.Metal, Color = Color3.fromRGB(190, 190, 200),
 			Reflectance = 0.3, Parent = parent }))
 	end
-end
-
--- Cadre de séchage des peaux (tanneur).
-local function hideRack(cf: CFrame, parent: Instance)
-	for _, x in ipairs({ -2.5, 2.5 }) do
-		part({ Size = Vector3.new(0.4, 5, 0.4), CFrame = cf * CFrame.new(x, 2.5, 0), Material = M.Wood, Color = TIMBER, Parent = parent })
-	end
-	part({ Size = Vector3.new(5.6, 0.3, 0.3), CFrame = cf * CFrame.new(0, 4.9, 0), Material = M.Wood, Color = TIMBER, Parent = parent })
-	deco(part({ Size = Vector3.new(4.2, 3.6, 0.1), CFrame = cf * CFrame.new(0, 2.9, 0), Material = M.Fabric,
-		Color = Color3.fromRGB(150 + random:NextInteger(-15, 15), 105, 70), Parent = parent }))
 end
 
 -- Fil à linge entre deux poteaux, avec du linge coloré.
@@ -1255,141 +1211,30 @@ do
 end
 
 ---------------------------------------------------------------------------
--- Est : abords du colisée
+-- Arènes des Champions : parvis des deux zones (est et ouest)
 ---------------------------------------------------------------------------
--- Parvis du Colisée sans fanions : seuls les braseros encadrent l'entrée.
-for _, z in ipairs({ -40, 40 }) do
-	brazierPost(at(150, z), props)
+-- Les six arènes sont construites par World (ArenaBuilder). Ici : les braseros
+-- qui encadrent l'arrivée des deux avenues.
+for _, x in ipairs({ 150, -150 }) do
+	for _, z in ipairs({ -40, 40 }) do
+		brazierPost(at(x, z), props)
+	end
 end
 
 ---------------------------------------------------------------------------
--- Ouest : quartier des artisans (forge de Borin, haut fourneau, ateliers)
+-- Forge de Borin : au nord des arènes de l'ouest (l'ancien quartier des
+-- artisans laisse la place aux arènes)
 ---------------------------------------------------------------------------
 local forgeCf = at(L.Forge.X, L.Forge.Y, SOUTH)
 do
-	local r = L.ArtisanYard
-	local yard = model("Artisans", props)
+	local yard = model("ForgeYard", props)
 	forge(forgeCf, villageFolder)
-	-- Muret autour du quartier, ouvert sur l'avenue et le boulevard.
-	local c1, c2 = Vector2.new(r[2].X, r[1].Y), Vector2.new(r[1].X, r[2].Y)
-	lowWall(r[1], c1, yard)
-	lowWall(c2, r[2], yard)
-	lowWall(c1, r[2], yard, { Vector2.new(r[2].X, 0) })
-	-- Haut fourneau : tour de brique, gueule incandescente, fumée, coulée.
-	do
-		local cf = at(-298, -82, EAST)
-		part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(16, 11, 11), CFrame = vertical(cf * CFrame.new(0, 8, 0)), Material = M.Brick,
-			Color = Color3.fromRGB(120, 70, 55), Parent = yard })
-		part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(10, 5, 5), CFrame = vertical(cf * CFrame.new(0, 21, 0)), Material = M.Brick,
-			Color = Color3.fromRGB(100, 60, 48), Parent = yard })
-		local mouth = deco(part({ Size = Vector3.new(4, 3.5, 0.4), CFrame = cf * CFrame.new(0, 3, -5.4), Material = M.Neon, Color = Color3.fromRGB(255, 120, 40),
-			Parent = yard }))
-		light(mouth, Color3.fromRGB(255, 130, 60), 3, 26)
-		local fire = Instance.new("Fire")
-		fire.Size = 4
-		fire.Heat = 6
-		fire.Parent = mouth
-		local top = deco(part({ Size = Vector3.one, CFrame = cf * CFrame.new(0, 26.5, 0), Transparency = 1, Parent = yard }))
-		local smoke = Instance.new("Smoke")
-		smoke.Opacity = 0.18
-		smoke.RiseVelocity = 6
-		smoke.Size = 4
-		smoke.Color = Color3.fromRGB(80, 80, 80)
-		smoke.Parent = top
-		deco(part({ Size = Vector3.new(1.2, 0.3, 10), CFrame = cf * CFrame.new(0, 1.4, -11), Material = M.Neon, Color = Color3.fromRGB(255, 150, 50), Parent = yard }))
-		part({ Size = Vector3.new(4, 1.2, 3), CFrame = cf * CFrame.new(0, 0.6, -17), Material = M.Slate, Color = Color3.fromRGB(60, 58, 62), Parent = yard })
-		-- Minerai et charbon au pied du fourneau.
-		for _, data in ipairs({ { -312, -100, Color3.fromRGB(70, 66, 72) }, { -312, -64, Color3.fromRGB(30, 28, 30) } }) do
-			-- Tas en pyramide : 3 × 3 blocs, puis un au sommet.
-			for i = 0, 8 do
-				deco(part({ Shape = Enum.PartType.Ball, Size = Vector3.one * 2,
-					CFrame = at(data[1] + (i % 3 - 1) * 1.9, data[2] + (i // 3 - 1) * 1.9) * CFrame.new(0, 0.8, 0),
-					Material = M.Slate, Color = data[3], Parent = yard }))
-			end
-			deco(part({ Shape = Enum.PartType.Ball, Size = Vector3.one * 2, CFrame = at(data[1], data[2]) * CFrame.new(0, 2.4, 0),
-				Material = M.Slate, Color = data[3], Parent = yard }))
-		end
-	end
-	-- Ateliers : armurier, coutelier, tanneur, menuisier.
-	shed(at(-290, 60, NORTH), "Armurier", yard, true)
-	shed(at(-245, 60, NORTH), "Coutelier", yard, true)
-	shed(at(-200, 60, NORTH), "Tanneur", yard)
-	shed(at(-170, -85, SOUTH), "Menuisier", yard)
-	-- Tanneur : cadres de séchage des peaux.
-	for i = 0, 3 do
-		hideRack(at(-205 + i * 7, 88, NORTH), yard)
-	end
-	-- Menuisier : piles de bois et chevalet.
-	woodpile(at(-190, -95, EAST), yard)
-	woodpile(at(-150, -95, EAST), yard)
-	part({ Size = Vector3.new(4, 0.4, 1), CFrame = at(-170, -65) * CFrame.new(0, 2.6, 0), Material = M.Wood, Color = TIMBER, Parent = yard })
-	-- Armurier : râteliers et mannequins en armure.
-	for i = 0, 2 do
-		weaponRack(at(-305 + i * 9, 32, NORTH), yard)
-	end
-	for _, x in ipairs({ -275, -262 }) do
-		local cf = at(x, 30, NORTH)
-		part({ Size = Vector3.new(0.4, 3, 0.4), CFrame = cf * CFrame.new(0, 1.5, 0), Material = M.Wood, Color = TIMBER, Parent = yard })
-		part({ Size = Vector3.new(2.4, 2.6, 1.4), CFrame = cf * CFrame.new(0, 4.2, 0), Material = M.Metal, Color = Color3.fromRGB(170, 170, 180), Reflectance = 0.2,
-			Parent = yard })
-		part({ Shape = Enum.PartType.Ball, Size = Vector3.one * 1.5, CFrame = cf * CFrame.new(0, 6.2, 0), Material = M.Metal, Color = Color3.fromRGB(150, 150, 160),
-			Parent = yard })
-	end
-	-- Abreuvoir de trempe, puits, charrette de minerai, tonneaux.
-	part({ Size = Vector3.new(7, 1.6, 3), CFrame = at(-205, -30) * CFrame.new(0, 0.8, 0), Material = M.Wood, Color = Color3.fromRGB(100, 70, 45), Parent = yard })
-	deco(part({ Size = Vector3.new(6.4, 0.2, 2.4), CFrame = at(-205, -30) * CFrame.new(0, 1.55, 0), Material = M.Glass, Color = Color3.fromRGB(60, 120, 150),
-		Transparency = 0.3, Parent = yard }))
-	well(at(-180, -30), yard)
-	cart(at(-270, -95, EAST), yard, Color3.fromRGB(60, 58, 62))
-	for _, c in ipairs({ { -212, -62 }, { -215, -59 }, { -258, -62 }, { -150, 40 }, { -153, 44 } }) do
-		barrel(at(c[1], c[2]), yard)
-	end
-	-- Étal d'outils sur l'avenue.
-	stall(at(-150, -25, SOUTH), Color3.fromRGB(110, 90, 70), yard)
-	stall(at(-150, 25, NORTH), Color3.fromRGB(150, 60, 50), yard)
-	for _, x in ipairs({ -320, -140 }) do
-		brazierPost(at(x + (x < 0 and 6 or 0), -14), yard)
-		brazierPost(at(x + (x < 0 and 6 or 0), 14), yard)
-	end
-	-- Deux maisons d'artisans au fond de la cour, côté ouest (les ateliers
-	-- occupent déjà les bords nord et sud).
-	for _, z in ipairs({ -55, -33 }) do
-		house(at(-315, z, EAST), houses, { W = 14, D = 11, Floors = 2 })
-	end
-	-- Alignement d'arbres en bacs de part et d'autre de l'avenue.
-	for x = -300, -170, 26 do
-		for _, z in ipairs({ -15, 15 }) do
-			local cf = at(x, z)
-			part({ Size = Vector3.new(4, 1.4, 4), CFrame = cf * CFrame.new(0, 0.7, 0), Material = M.Cobblestone, Color = STONE, Parent = yard })
-			tree(cf * CFrame.new(0, 1.4, 0), 0.8, trees)
-		end
-	end
-	-- Teinturerie : cuves de couleur et tissus qui sèchent.
-	local dyes = { Color3.fromRGB(170, 40, 50), Color3.fromRGB(50, 80, 160), Color3.fromRGB(220, 170, 40), Color3.fromRGB(70, 130, 70), Color3.fromRGB(120, 60, 140) }
-	for i, color in ipairs(dyes) do
-		local cf = at(-300 + (i - 1) * 9, 82)
-		part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(2.6, 5.4, 5.4), CFrame = vertical(cf * CFrame.new(0, 1.3, 0)), Material = M.Wood,
-			Color = Color3.fromRGB(110, 75, 45), Parent = yard })
-		deco(part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.2, 4.8, 4.8), CFrame = vertical(cf * CFrame.new(0, 2.5, 0)), Material = M.SmoothPlastic,
-			Color = color, Parent = yard }))
-	end
-	laundry(Vector2.new(-302, 70), Vector2.new(-262, 70), yard)
-	hangingSign(at(-270, 82, NORTH) * CFrame.new(0, 2, -4) * CFrame.Angles(0, math.pi / 2, 0), "Teinturier", yard)
-	-- Entrepôt de bois du menuisier et charron, au sud-est de la cour.
-	barn(at(-220, 82, NORTH), 16, 14, yard).Name = "Woodshed"
-	for _, x in ipairs({ -250, -238 }) do
-		woodpile(at(x, 70, EAST), yard)
-	end
-	for i = 0, 2 do
-		part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 3.6, 3.6), CFrame = at(-170 + i * 3, 75) * CFrame.new(0, 1.8, 0) * CFrame.Angles(0, 0, math.rad(8)),
-			Material = M.Wood, Color = Color3.fromRGB(80, 56, 34), Parent = yard })
-	end
-	cart(at(-180, 72, WEST), yard)
-	-- Bancs et tables de travail en bordure.
-	for _, x in ipairs({ -287, -235 }) do
-		bench(at(x, -20, NORTH) * CFrame.Angles(0, math.pi, 0), yard)
-		bench(at(x, 20, SOUTH) * CFrame.Angles(0, math.pi, 0), yard)
-	end
+	-- Abords de la forge : bois, charrette de minerai, caisses et tonneaux.
+	woodpile(forgeCf * CFrame.new(14, 0, 3), yard)
+	cart(forgeCf * CFrame.new(-15, 0, 1), yard, Color3.fromRGB(60, 58, 62))
+	crate(forgeCf * CFrame.new(-12, 0, -6), yard)
+	barrel(forgeCf * CFrame.new(-9.5, 1, -7), yard)
+	barrel(forgeCf * CFrame.new(12, 1, -6), yard)
 	spot(-300, -40)
 	spot(-160, 95)
 end
@@ -1547,19 +1392,27 @@ end
 -- Arbres alignés le long des rues, et un peu de verdure basse.
 ---------------------------------------------------------------------------
 do
-	local zones = { L.HonorCourt, L.MarketSquare, L.ArtisanYard, L.BarracksYard, L.TrainingYard, L.StableYard, L.WarehouseYard,
+	local zones = { L.HonorCourt, L.MarketSquare, L.BarracksYard, L.TrainingYard, L.StableYard, L.WarehouseYard,
 		L.VegetableGarden, L.Houses, L.Fields, L.SheepPen }
 	local function free(x: number, z: number, margin: number): boolean
 		local p = Vector2.new(x, z)
 		if p.Magnitude < L.Plaza + 6 or math.max(math.abs(x), math.abs(z)) > L.Wall - 8 then
 			return false
 		end
-		-- Parvis du Colisée dégagé (deux arbres symétriques l'encadrent, posés plus bas).
-		local gateDir = Vector2.new(math.cos(math.rad(L.ColosseumGate)), math.sin(math.rad(L.ColosseumGate)))
-		if (p - (L.Colosseum + gateDir * L.ColosseumRadius)).Magnitude < 50 then
-			return false
+		-- Zones d'arènes et leurs parvis dégagés (deux arbres symétriques encadrent
+		-- chaque parvis, posés plus bas).
+		for _, zone in ipairs(VillageData.arenaZones()) do
+			-- Rectangle dallé de la zone (même forme que dans World.server) + son parvis.
+			local rel = p - zone.Center
+			local along = rel:Dot(zone.Gate)
+			local across = math.abs(rel.X * -zone.Gate.Y + rel.Y * zone.Gate.X)
+			local inZone = along <= VillageData.Arena.Length / 2 + 24 + 4 and along >= -(VillageData.Arena.Length / 2 + 14 + 4)
+				and across <= VillageData.Arena.Spacing + VillageData.Arena.Width / 2 + 6 + 4
+			if inZone or (p - (zone.Center + zone.Gate * L.ColosseumRadius)).Magnitude < 50 then
+				return false
+			end
 		end
-		if (p - L.Colosseum).Magnitude < L.ColosseumRadius + 10 or (p - L.Windmill).Magnitude < 14 or (p - Vector2.new(0, -280)).Magnitude < 40 then
+		if (p - L.Windmill).Magnitude < 14 or (p - Vector2.new(0, -280)).Magnitude < 40 then
 			return false
 		end
 		for _, g in ipairs(L.Gardens) do
@@ -1609,11 +1462,10 @@ do
 			end
 		end
 	end
-	-- Deux arbres feuillus symétriques de part et d'autre du parvis du Colisée.
-	do
-		local gateDir = Vector2.new(math.cos(math.rad(L.ColosseumGate)), math.sin(math.rad(L.ColosseumGate)))
-		local side = Vector2.new(-gateDir.Y, gateDir.X)
-		local front = L.Colosseum + gateDir * (L.ColosseumRadius + 14)
+	-- Deux arbres feuillus symétriques de part et d'autre de chaque parvis d'arènes.
+	for _, zone in ipairs(VillageData.arenaZones()) do
+		local side = Vector2.new(-zone.Gate.Y, zone.Gate.X)
+		local front = zone.Center + zone.Gate * (L.ColosseumRadius + 14)
 		for _, s in ipairs({ -1, 1 }) do
 			local q = front + side * s * 30
 			tree(at(q.X, q.Y), 1, trees, false)
@@ -1639,7 +1491,10 @@ for d = 140, 320, 30 do
 	if d < 230 then
 		lampPost(at(11, -d), props)
 	end
-	lampPost(at(-d, -11), props)
+	-- Avenue ouest : elle s'arrête au parvis des arènes.
+	if d < 165 then
+		lampPost(at(-d, -11), props)
+	end
 	-- Côté opposé de chaque avenue.
 	if not nearFountain then
 		lampPost(at(11, d), props)
@@ -1647,7 +1502,9 @@ for d = 140, 320, 30 do
 	if d < 230 then
 		lampPost(at(-11, -d), props)
 	end
-	lampPost(at(-d, 11), props)
+	if d < 165 then
+		lampPost(at(-d, 11), props)
+	end
 end
 -- Avenue est : pas de lampadaires devant l'entrée du Colisée.
 
@@ -2272,16 +2129,17 @@ npcFolder.Parent = World
 local npcSpots = {
 	Elya = shopCf * CFrame.new(0, 0, -8.6),
 	Borin = forgeCf * CFrame.new(-3, 1, -5),
-	Varek = (function()
-		local c = L.Colosseum
-		local gate = math.rad(L.ColosseumGate)
-		-- Dans l'axe de l'entrée, en haut de l'escalier : face au joueur qui
-		-- arrive, hors de la zone de combat (duellistes à 20 studs du centre).
-		local outward = Vector3.new(math.cos(gate), 0, math.sin(gate))
-		local pos = Vector3.new(c.X, L.Ground + 3.5, c.Y) + outward * 44
-		return CFrame.lookAt(pos, pos + outward)
-	end)(),
 }
+-- Varek : un de chaque côté, sur l'estrade devant les arènes de sa zone,
+-- face aux dresseurs qui arrivent par l'avenue.
+local function varekSpot(c: Vector2, gateDeg: number): CFrame
+	local gate = math.rad(gateDeg)
+	local outward = Vector3.new(math.cos(gate), 0, math.sin(gate))
+	local pos = Vector3.new(c.X, L.Ground + 1.1, c.Y) + outward * (VillageData.Arena.Length / 2 + 10)
+	return CFrame.lookAt(pos, pos + outward)
+end
+npcSpots.Varek = varekSpot(L.Colosseum, L.ColosseumGate)
+local npcExtras = { { "Varek", varekSpot(L.ArenaWest, L.ArenaWestGate) } }
 
 -- Quartiers : un PNJ et son étal (comptoir, auvent rayé, enseigne, lanterne).
 local stallsFolder = model("Stalls", World)
@@ -2326,9 +2184,9 @@ for _, d in ipairs(DISTRICT_NPCS) do
 	stall(cf, d[5], d[6])
 end
 
-for id, spot in pairs(npcSpots) do
+local function spawnNpc(id: string, spotCf: CFrame)
 	local look = VillageData.Npcs[id]
-	local npc = buildCharacter(id, look, spot, npcFolder)
+	local npc = buildCharacter(id, look, spotCf, npcFolder)
 	if npc then
 		npc:SetAttribute("NpcId", id)
 		local root = npc:FindFirstChild("HumanoidRootPart") :: BasePart
@@ -2348,6 +2206,12 @@ for id, spot in pairs(npcSpots) do
 		prompt:SetAttribute("NpcId", id)
 		prompt.Parent = root
 	end
+end
+for id, spotCf in pairs(npcSpots) do
+	spawnNpc(id, spotCf)
+end
+for _, extra in ipairs(npcExtras) do
+	spawnNpc(extra[1], extra[2])
 end
 
 
@@ -2378,7 +2242,7 @@ local routes = {
 	Nell = loop({ Vector2.new(-318, 161), Vector2.new(-142, 161), Vector2.new(-142, 162), Vector2.new(-318, 162) }),
 	Bram = loop({ Vector2.new(140, -222), Vector2.new(320, -222), Vector2.new(320, -221), Vector2.new(140, -221) }),
 	Elise = loop({ Vector2.new(-318, 191), Vector2.new(-140, 191), Vector2.new(-140, 192), Vector2.new(-318, 192) }),
-	Odo = loop({ Vector2.new(-118, 3), Vector2.new(-320, 3), Vector2.new(-320, -3), Vector2.new(-118, -3) }),
+	Odo = loop({ Vector2.new(-118, 3), Vector2.new(-165, 3), Vector2.new(-165, -3), Vector2.new(-118, -3) }),
 	Timo = loop({ Vector2.new(-125, -125), Vector2.new(125, -125), Vector2.new(125, 125), Vector2.new(-125, 125) }),
 }
 
@@ -2573,9 +2437,17 @@ local function duplicatesByRarity(profile): { [string]: number }
 end
 
 local function nearNpc(player: Player, npcId: string): boolean
-	local npc = npcFolder:FindFirstChild(npcId)
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-	return npc ~= nil and root ~= nil and (npc:GetPivot().Position - root.Position).Magnitude < 25
+	if not root then
+		return false
+	end
+	-- Plusieurs PNJ peuvent partager un id (un Varek par zone d'arènes).
+	for _, npc in ipairs(npcFolder:GetChildren()) do
+		if npc:GetAttribute("NpcId") == npcId and (npc:GetPivot().Position - root.Position).Magnitude < 25 then
+			return true
+		end
+	end
+	return false
 end
 
 local actions = {}
@@ -2836,27 +2708,168 @@ local inDuel: { [Player]: Player } = {}
 -- Joueurs en entraînement contre le mannequin de Varek.
 local training: { [Player]: boolean } = {}
 
-local function colosseumCenter(): Vector3
-	local c = L.Colosseum
-	return Vector3.new(c.X, L.Ground + 0.5, c.Y)
+-- Arènes des Champions : six arènes (VillageData.arenaSlots), une par duel ou
+-- entraînement en cours. Chaque combat réserve la sienne et la libère à la fin.
+local ARENA = VillageData.Arena
+local arenaBusy: { [string]: boolean } = {}
+local arenaOf: { [Player]: any } = {} -- arène réservée par chaque combattant
+
+local function arenaCenter(slot): Vector3
+	return Vector3.new(slot.Center.X, L.Ground + ARENA.FloorHeight, slot.Center.Y)
 end
 
--- Spectateurs : les joueurs proches du Cercle des Arcanes (et hors duel)
--- voient le combat en 3D. Les retardataires reçoivent l'état en cours.
-local SPECTATE_RANGE = 110
-local spectated = nil -- { Start = données, Latest = dernier état, Viewers = { [Player] = true } }
+-- Zone (Est / Ouest) la plus proche d'un joueur : on lui donne une arène de son côté.
+local function zoneOf(player: Player): string?
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return nil
+	end
+	local p = Vector2.new(root.Position.X, root.Position.Z)
+	return if (p - L.Colosseum).Magnitude <= (p - L.ArenaWest).Magnitude then "Est" else "Ouest"
+end
 
-local function nearCircle(p: Player): boolean
+local function freeArena(preferredZone: string?): any?
+	local fallback = nil
+	for _, slot in ipairs(VillageData.arenaSlots()) do
+		if not arenaBusy[slot.Id] then
+			if slot.Zone == preferredZone then
+				return slot
+			end
+			fallback = fallback or slot
+		end
+	end
+	return fallback
+end
+
+-- Murs invisibles autour d'une arène pendant un combat : personne d'autre ne
+-- peut y entrer (les spectateurs regardent depuis l'extérieur). Les joueurs
+-- déjà dedans qui ne combattent pas sont reconduits devant l'entrée.
+local BARRIER_HEIGHT = 40
+local barriers: { [string]: Folder } = {}
+
+local function closeArena(slot, fighters: { Player })
+	if barriers[slot.Id] then
+		return
+	end
+	local center = arenaCenter(slot)
+	local axis = Vector3.new(slot.Axis.X, 0, slot.Axis.Y)
+	local across = Vector3.new(-slot.Axis.Y, 0, slot.Axis.X)
+	local halfL, halfW = ARENA.Length / 2 + 1, ARENA.Width / 2 + 1
+	local folder = Instance.new("Folder")
+	folder.Name = "Barriere_" .. slot.Id
+	local base = CFrame.fromMatrix(center + Vector3.new(0, BARRIER_HEIGHT / 2 - ARENA.FloorHeight, 0), across, Vector3.yAxis)
+	for _, w in ipairs({
+		{ CFrame.new(0, 0, halfL), Vector3.new(halfW * 2 + 2, BARRIER_HEIGHT, 1) },
+		{ CFrame.new(0, 0, -halfL), Vector3.new(halfW * 2 + 2, BARRIER_HEIGHT, 1) },
+		{ CFrame.new(halfW, 0, 0), Vector3.new(1, BARRIER_HEIGHT, halfL * 2 + 2) },
+		{ CFrame.new(-halfW, 0, 0), Vector3.new(1, BARRIER_HEIGHT, halfL * 2 + 2) },
+	}) do
+		local wall = Instance.new("Part")
+		wall.Name = "MurInvisible"
+		wall.Anchored = true
+		wall.CanCollide = true
+		wall.CanQuery = false -- ne gêne ni les caméras ni les rayons du combat
+		wall.CanTouch = false
+		wall.Transparency = 1
+		wall.CastShadow = false
+		wall.Size = w[2]
+		wall.CFrame = base * w[1]
+		wall.Parent = folder
+	end
+	folder.Parent = World
+	barriers[slot.Id] = folder
+
+	-- Intrus déjà sur la piste : reconduits devant l'entrée de l'arène.
+	local exitPos = center + axis * (halfL + 6) + Vector3.new(0, 3, 0)
+	for _, p in ipairs(Players:GetPlayers()) do
+		local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+		if root and not table.find(fighters, p) then
+			local rel = root.Position - center
+			if math.abs(rel:Dot(axis)) < halfL + 1 and math.abs(rel:Dot(across)) < halfW + 1 then
+				p.Character:PivotTo(CFrame.lookAt(exitPos, Vector3.new(center.X, exitPos.Y, center.Z)))
+			end
+		end
+	end
+end
+
+local function openArena(slotId: string)
+	local folder = barriers[slotId]
+	if folder then
+		folder:Destroy()
+		barriers[slotId] = nil
+	end
+end
+
+local function reserveArena(players: { Player }, preferredZone: string?): any?
+	local slot = freeArena(preferredZone)
+	if slot then
+		arenaBusy[slot.Id] = true
+		for _, p in ipairs(players) do
+			arenaOf[p] = slot
+			p:SetAttribute("DuelArena", slot.Id)
+		end
+		closeArena(slot, players)
+	end
+	return slot
+end
+
+local function releaseArena(players: { Player? })
+	for _, p in ipairs(players) do
+		if p then
+			local slot = arenaOf[p]
+			if slot then
+				arenaBusy[slot.Id] = nil
+				openArena(slot.Id)
+			end
+			arenaOf[p] = nil
+			if p.Parent then
+				p:SetAttribute("DuelArena", nil)
+			end
+		end
+	end
+end
+
+-- Place un combattant sur sa marque (±20 studs sur l'axe), face au centre.
+local function placeOnArena(character: Model?, slot, sign: number)
+	if not character then
+		return
+	end
+	local center = arenaCenter(slot)
+	local axis = Vector3.new(slot.Axis.X, 0, slot.Axis.Y)
+	local pos = center + axis * 20 * sign + Vector3.new(0, 3, 0)
+	character:PivotTo(CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z)))
+end
+
+-- Spectateurs : les joueurs proches d'une arène (et hors combat) voient son
+-- duel en 3D. Les retardataires reçoivent l'état en cours.
+local SPECTATE_RANGE = 45
+local spectated: { [string]: any } = {} -- [id d'arène] = { Start, Latest, Viewers }
+
+-- Arène la plus proche d'un joueur, si elle est à portée de regard.
+local function arenaNear(p: Player): string?
 	local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-	return root ~= nil and (root.Position - colosseumCenter()).Magnitude < SPECTATE_RANGE
+	if not root then
+		return nil
+	end
+	local best, bestD = nil, SPECTATE_RANGE
+	for _, slot in ipairs(VillageData.arenaSlots()) do
+		local d = (root.Position - arenaCenter(slot)).Magnitude
+		if d < bestD then
+			best, bestD = slot.Id, d
+		end
+	end
+	return best
 end
 
-local function spectateHook(a: Player)
+local function spectateHook(a: Player, slot)
 	local view = { Viewers = {} }
-	spectated = view
+	spectated[slot.Id] = view
 	return function(kind: string, data)
-		if spectated ~= view then
+		if spectated[slot.Id] ~= view then
 			return
+		end
+		if type(data) == "table" then
+			data.Arena = slot.Id
 		end
 		if kind == "Start" then
 			view.Start = data
@@ -2866,7 +2879,7 @@ local function spectateHook(a: Player)
 		end
 		for _, p in ipairs(Players:GetPlayers()) do
 			local watching = view.Viewers[p]
-			if not inDuel[p] and not training[p] and p ~= a and nearCircle(p) then
+			if not inDuel[p] and not training[p] and p ~= a and arenaNear(p) == slot.Id then
 				if kind == "Start" or (kind == "Resolve" and watching) then
 					view.Viewers[p] = true
 					DuelEvent:FireClient(p, "Spec" .. kind, data)
@@ -2877,7 +2890,7 @@ local function spectateHook(a: Player)
 			end
 		end
 		if kind == "End" then
-			spectated = nil
+			spectated[slot.Id] = nil
 		end
 	end
 end
@@ -2885,20 +2898,22 @@ end
 task.spawn(function()
 	while true do
 		task.wait(1)
-		local view = spectated
-		if view and view.Start then
-			for _, p in ipairs(Players:GetPlayers()) do
-				local near = nearCircle(p) and not inDuel[p] and not training[p]
-				if near and not view.Viewers[p] then
-					-- Arrivée en cours de duel : état actuel des deux équipes.
-					local data = table.clone(view.Latest)
-					data.MeInfo, data.OppInfo = view.Start.MeInfo, view.Start.OppInfo
-					data.Events = nil
-					view.Viewers[p] = true
-					DuelEvent:FireClient(p, "SpecStart", data)
-				elseif not near and view.Viewers[p] then
-					view.Viewers[p] = nil
-					DuelEvent:FireClient(p, "SpecEnd", {})
+		for id, view in pairs(spectated) do
+			if view.Start then
+				for _, p in ipairs(Players:GetPlayers()) do
+					local near = arenaNear(p) == id and not inDuel[p] and not training[p]
+					if near and not view.Viewers[p] then
+						-- Arrivée en cours de duel : état actuel des deux équipes.
+						local data = table.clone(view.Latest)
+						data.MeInfo, data.OppInfo = view.Start.MeInfo, view.Start.OppInfo
+						data.Events = nil
+						data.Arena = id
+						view.Viewers[p] = true
+						DuelEvent:FireClient(p, "SpecStart", data)
+					elseif not near and view.Viewers[p] then
+						view.Viewers[p] = nil
+						DuelEvent:FireClient(p, "SpecEnd", {})
+					end
 				end
 			end
 		end
@@ -2911,6 +2926,7 @@ local function endDuel(a: Player, reason: string)
 	if b then
 		inDuel[b] = nil
 	end
+	releaseArena({ a, b })
 	for _, p in ipairs({ a, b }) do
 		if p and p.Parent then
 			Notify:FireClient(p, reason, "Info")
@@ -2920,18 +2936,17 @@ local function endDuel(a: Player, reason: string)
 end
 
 local function startDuel(a: Player, b: Player)
-	inDuel[a], inDuel[b] = b, a
-	local center = colosseumCenter()
-	local gate = math.rad(L.ColosseumGate)
-	-- Les deux duellistes se font face, perpendiculairement à l'axe des portes.
-	local side = Vector3.new(-math.sin(gate), 0, math.cos(gate))
-	for index, p in ipairs({ a, b }) do
-		local character = p.Character
-		if character then
-			local pos = center + side * (index == 1 and 20 or -20) + Vector3.new(0, 4, 0)
-			character:PivotTo(CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z)))
+	local slot = reserveArena({ a, b }, zoneOf(a))
+	if not slot then
+		for _, p in ipairs({ a, b }) do
+			Notify:FireClient(p, "Toutes les arènes sont occupées : réessaie dans un instant.", "Info")
 		end
+		return
 	end
+	inDuel[a], inDuel[b] = b, a
+	-- Les deux duellistes se font face sur l'axe de leur arène.
+	placeOnArena(a.Character, slot, 1)
+	placeOnArena(b.Character, slot, -1)
 	-- Combat de cartes : récompenses à la fin, puis fin du duel.
 	local profileA, profileB = DataService.Get(a), DataService.Get(b)
 	if not (profileA and profileB) then
@@ -2939,6 +2954,9 @@ local function startDuel(a: Player, b: Player)
 		return
 	end
 	DuelCombat.start(a, b, profileA, profileB, function(player, kind, data)
+		if kind == "Start" and type(data) == "table" then
+			data.Arena = slot.Id
+		end
 		DuelEvent:FireClient(player, kind, data)
 	end, function(winner, loser, reason)
 		for _, pl in ipairs({ a, b }) do
@@ -2954,17 +2972,18 @@ local function startDuel(a: Player, b: Player)
 				endDuel(a, reason)
 			end
 		end)
-	end, spectateHook(a))
+	end, spectateHook(a, slot))
 end
 
--- Un duelliste qui quitte l'arène abandonne le duel.
+-- Un duelliste qui quitte son arène abandonne le duel.
 task.spawn(function()
 	while true do
 		task.wait(2)
-		local center = colosseumCenter()
 		for p in pairs(inDuel) do
 			local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-			if p.Parent == nil or root == nil or (root.Position - center).Magnitude > L.ColosseumRadius + 15 then
+			local slot = arenaOf[p]
+			local far = slot and root and (root.Position - arenaCenter(slot)).Magnitude > ARENA.Length / 2 + 18
+			if p.Parent == nil or root == nil or far then
 				DuelCombat.forfeit(p, p.DisplayName .. " a quitté l'arène : abandon.")
 				endDuel(p, "Le duel est terminé : un duelliste a quitté l'arène.")
 			end
@@ -2974,7 +2993,7 @@ end)
 
 function actions.DuelList(player)
 	if not nearNpc(player, "Varek") then
-		return { ok = false, reason = "Approche-toi de Varek, dans l'Arène des Champions." }
+		return { ok = false, reason = "Approche-toi de Varek, aux Arènes des Champions." }
 	end
 	local list = {}
 	for _, other in ipairs(Players:GetPlayers()) do
@@ -2987,7 +3006,7 @@ end
 
 function actions.DuelInvite(player, _profile, userId)
 	if not nearNpc(player, "Varek") then
-		return { ok = false, reason = "Approche-toi de Varek, dans l'Arène des Champions." }
+		return { ok = false, reason = "Approche-toi de Varek, aux Arènes des Champions." }
 	end
 	if inDuel[player] or DuelCombat.isFighting(player) then
 		return { ok = false, reason = "Tu es déjà en combat !" }
@@ -3001,6 +3020,9 @@ function actions.DuelInvite(player, _profile, userId)
 	end
 	if #DuelCombat.deckFor(_profile) == 0 then
 		return { ok = false, reason = "Il te faut au moins une créature : ouvre un booster à l'autel !" }
+	end
+	if not freeArena(nil) then
+		return { ok = false, reason = "Les six arènes sont occupées : réessaie dans un instant." }
 	end
 	duelInvites[target] = { From = player, Expires = os.clock() + DUEL_INVITE_TIME }
 	DuelEvent:FireClient(target, "Invite", { FromId = player.UserId, FromName = player.DisplayName, Duration = DUEL_INVITE_TIME })
@@ -3025,6 +3047,10 @@ function actions.DuelRespond(player, _profile, data)
 		Notify:FireClient(invite.From, player.DisplayName .. " n'a pas encore de créature pour combattre.", "Info")
 		return { ok = false, reason = "Il te faut au moins une créature : ouvre un booster à l'autel !" }
 	end
+	if not freeArena(nil) then
+		Notify:FireClient(invite.From, "Les six arènes sont occupées : relance le défi dans un instant.", "Info")
+		return { ok = false, reason = "Les six arènes sont occupées : réessaie dans un instant." }
+	end
 	startDuel(invite.From, player)
 	return { ok = true }
 end
@@ -3037,10 +3063,10 @@ Players.PlayerRemoving:Connect(function(player)
 	end
 end)
 
--- Mode entraînement : combat contre un bot, sans récompense.
+-- Mode entraînement : combat contre un bot, sans récompense, dans une arène libre.
 function actions.TrainingStart(player, profile)
 	if not (nearNpc(player, "Varek") or nearNpc(player, "Rhea")) then
-		return { ok = false, reason = "Approche-toi de Varek, au Cercle des Arcanes." }
+		return { ok = false, reason = "Approche-toi de Varek, aux Arènes des Champions." }
 	end
 	if inDuel[player] or training[player] or DuelCombat.isFighting(player) then
 		return { ok = false, reason = "Tu es déjà en combat !" }
@@ -3048,17 +3074,17 @@ function actions.TrainingStart(player, profile)
 	if #DuelCombat.deckFor(profile) == 0 then
 		return { ok = false, reason = "Il te faut au moins une créature : ouvre un booster à l'autel !" }
 	end
-	training[player] = true
-	local center = colosseumCenter()
-	local gate = math.rad(L.ColosseumGate)
-	local sideDir = Vector3.new(-math.sin(gate), 0, math.cos(gate))
-	local character = player.Character
-	if character then
-		local pos = center + sideDir * 20 + Vector3.new(0, 4, 0)
-		character:PivotTo(CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z)))
+	local slot = reserveArena({ player }, zoneOf(player))
+	if not slot then
+		return { ok = false, reason = "Les six arènes sont occupées : réessaie dans un instant." }
 	end
+	training[player] = true
+	placeOnArena(player.Character, slot, 1)
 	local bot = DuelCombat.newBot("Mannequin de Varek")
 	DuelCombat.start(player, bot, profile, nil, function(target, kind, data)
+		if kind == "Start" and type(data) == "table" then
+			data.Arena = slot.Id
+		end
 		DuelEvent:FireClient(target, kind, data)
 	end, function(winner, _loser, reason)
 		-- Défi quotidien de Rhéa : la première victoire du jour rapporte des gemmes.
@@ -3071,12 +3097,13 @@ function actions.TrainingStart(player, profile)
 		end
 		task.delay(5, function()
 			training[player] = nil
+			releaseArena({ player })
 			if player.Parent then
 				Notify:FireClient(player, "Entraînement terminé : " .. reason, "Info")
 				DuelEvent:FireClient(player, "End", {})
 			end
 		end)
-	end, spectateHook(player))
+	end, spectateHook(player, slot))
 	return { ok = true }
 end
 
@@ -3084,6 +3111,7 @@ Players.PlayerRemoving:Connect(function(player)
 	if training[player] then
 		DuelCombat.forfeit(player, "Entraînement abandonné.")
 		training[player] = nil
+		releaseArena({ player })
 	end
 end)
 

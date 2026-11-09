@@ -444,7 +444,7 @@ function Panels.help(parent: Instance)
 		local steps = {
 			{ "Ouvre des boosters", string.format("À l'autel ou chez les marchands. Chaque booster coûte %d gemmes et contient 3 créatures.", economy.BoosterPrice) },
 			{ "Complète ton bestiaire", "30 créatures à découvrir. Les doublons te remboursent des gemmes selon leur rareté." },
-			{ "Combats au Cercle des Arcanes", "Choisis 3 créatures et affronte d'autres joueurs ou le mannequin de Varek, au tour par tour." },
+			{ "Combats aux Arènes des Champions", "Choisis 3 créatures et affronte d'autres joueurs ou le mannequin de Varek, au tour par tour." },
 			{ "Fais progresser tes Anima", "Chaque combat donne de l'expérience : tes créatures montent de niveau et évoluent aux niveaux 10 et 20." },
 		}
 		for i, s in ipairs(steps) do
@@ -518,7 +518,7 @@ function Panels.help(parent: Instance)
 	pages[4] = function()
 		heading("La cité de Brumeval", 1)
 		local places = {
-			{ "Le Cercle des Arcanes", "Au centre : l'autel des boosters et l'arène des duels, tenue par Varek.", Color3.fromRGB(150, 110, 255) },
+			{ "Les Arènes des Champions", "Six arènes de duel, trois à l'est et trois à l'ouest, tenues par Varek. Au centre : l'autel des boosters.", Color3.fromRGB(150, 110, 255) },
 			{ "La Grand-Place (sud)", "La boutique d'Elya, la taverne du Griffon Doré et la fontaine.", Color3.fromRGB(255, 200, 90) },
 			{ "Le quartier des Artisans (ouest)", "La forge de Borin : vente et fusion de doublons.", Color3.fromRGB(255, 120, 60) },
 			{ "Le quartier des Mages (nord)", "La tour de Maître Orin et le sanctuaire des cristaux de Sélène.", Color3.fromRGB(120, 180, 255) },

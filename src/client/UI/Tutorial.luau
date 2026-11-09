@@ -509,15 +509,15 @@ local CHAPTERS: { Chapter } = {
 	},
 	{
 		Key = "Cercle", Icon = "◈", Accent = Color3.fromRGB(150, 110, 255),
-		Title = "Le Cercle des Arcanes",
-		Text = "À l'est de la cité, le cercle magique accueille les duels. Tu y entres avec ton Anima, sous les yeux des autres dresseurs.",
+		Title = "Les Arènes des Champions",
+		Text = "À l'est et à l'ouest de la cité, six arènes accueillent les duels en même temps. Tu y entres avec ton Anima, sous les yeux des autres dresseurs.",
 		Points = {
 			{ Icon = "◈", Color = Color3.fromRGB(255, 120, 100), Title = "Varek", Text = "Défie un autre joueur ou entraîne-toi contre son mannequin." },
 			{ Icon = "★", Color = GOLD, Title = "Défi du jour", Text = "Capitaine Rhéa, à la caserne, récompense ta première victoire de la journée." },
-			{ Icon = "◎", Color = Color3.fromRGB(130, 215, 255), Title = "Spectateur", Text = "Approche-toi du cercle pendant un duel pour le regarder en direct." },
+			{ Icon = "◎", Color = Color3.fromRGB(130, 215, 255), Title = "Spectateur", Text = "Approche-toi d'une arène pendant un duel pour le regarder en direct." },
 		},
 		Draw = function(f)
-			place(f, { "World", "Colosseum" }, Vector3.new(0.55, 0.6, -1), { "umbrelune", "nyxaria", "tonnerrhin" })
+			place(f, { "World", "Arenes", "Est2" }, Vector3.new(0.55, 0.6, -1), { "umbrelune", "nyxaria", "tonnerrhin" })
 		end,
 	},
 	{
