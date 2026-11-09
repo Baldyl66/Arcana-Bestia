@@ -289,6 +289,16 @@ local IMAGES = {
 	gouttelin = "rbxassetid://132766251796257",
 	lucioline = "rbxassetid://117482103712363",
 	mousseron = "rbxassetid://82959470319394",
+	aquatortue = "rbxassetid://120131153188786",
+	spectrombre = "rbxassetid://113085269779199",
+	ronceloup = "rbxassetid://111312870555129",
+	voltigeai = "rbxassetid://70509747952462",
+	marelame = "rbxassetid://123477302719000",
+	pyrogriff = "rbxassetid://100935103414574",
+	abyssalor = "rbxassetid://105637570757551",
+	aurelion = "rbxassetid://103140978196125",
+	florhydre = "rbxassetid://95768854997961",
+	orageon = "rbxassetid://102487601040307",
 }
 
 CardsData.CardById = {}
