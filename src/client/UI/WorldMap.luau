@@ -375,80 +375,199 @@ function WorldMap.track(marker: Frame, isVisible: () -> boolean)
 	end)
 end
 
--- Grande carte : panneau avec les points de téléportation.
+-- Grande carte : le plan illustré dans un cadre doré à gauche, la liste des
+-- destinations à droite (un clic téléporte). Les points de la carte sont de
+-- petits repères qui s'illuminent quand on survole leur destination.
+local GOLD = Color3.fromRGB(232, 190, 105)
+local INK = Color3.fromRGB(22, 15, 32)
+
 function WorldMap.panel(parent: Instance, teleport: (id: string) -> ())
 	local panel = UIKit.panel(parent, "CARTE DU MONDE")
 	local content = panel.Content
-	local mapFrame = UIKit.new("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5),
+
+	-- Carte : carré calé à gauche, sur toute la hauteur du contenu.
+	local frame = UIKit.new("Frame", {
+		Name = "MapFrame",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		Parent = content,
 	})
-	UIKit.new("UIAspectRatioConstraint", { AspectRatio = 1, Parent = mapFrame })
-	UIKit.corner(mapFrame, 12)
-	UIKit.stroke(mapFrame, Color3.fromRGB(232, 190, 105), 3, 0)
+	UIKit.new("UIAspectRatioConstraint", { AspectRatio = 1, AspectType = Enum.AspectType.ScaleWithParentSize, DominantAxis = Enum.DominantAxis.Height, Parent = frame })
+	UIKit.corner(frame, 10)
+	UIKit.gradient(frame, Color3.fromRGB(120, 82, 46), Color3.fromRGB(66, 42, 24), 90)
+	UIKit.stroke(frame, GOLD, 3, 0)
+	-- Losanges dorés aux coins du cadre.
+	for _, c in ipairs({ Vector2.new(0, 0), Vector2.new(1, 0), Vector2.new(0, 1), Vector2.new(1, 1) }) do
+		local gem = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(c.X, c.X == 0 and 7 or -7, c.Y, c.Y == 0 and 7 or -7),
+			Size = UDim2.fromOffset(12, 12), Rotation = 45, BackgroundColor3 = GOLD, ZIndex = 30, Parent = frame })
+		UIKit.stroke(gem, Color3.fromRGB(70, 40, 15), 1.5, 0)
+	end
+	local mapFrame = UIKit.new("Frame", {
+		Name = "Map",
+		Position = UDim2.fromOffset(10, 10),
+		Size = UDim2.new(1, -20, 1, -20),
+		BackgroundColor3 = Color3.fromRGB(251, 246, 234),
+		Parent = frame,
+	})
+	UIKit.corner(mapFrame, 4)
+	UIKit.stroke(mapFrame, Color3.fromRGB(60, 38, 20), 2, 0)
 	local marker = WorldMap.draw(mapFrame, true)
 	WorldMap.track(marker, function()
 		return panel.IsOpen
 	end)
 
-	for _, point in ipairs(VillageData.Teleports) do
+	-- Colonne des destinations, à droite de la carte.
+	local side = UIKit.new("Frame", {
+		Name = "Destinations",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.fromScale(1, 0),
+		Size = UDim2.new(0, 320, 1, 0),
+		BackgroundColor3 = INK,
+		BackgroundTransparency = 0.25,
+		Parent = content,
+	})
+	UIKit.corner(side, 10)
+	UIKit.stroke(side, GOLD, 1.5, 0.35)
+	UIKit.label({ Text = "DESTINATIONS", Font = UIKit.Fonts.Title, TextColor3 = Color3.fromRGB(255, 225, 150), Position = UDim2.fromOffset(16, 10),
+		Size = UDim2.new(1, -32, 0, 30), TextXAlignment = Enum.TextXAlignment.Left, Parent = side }, 26)
+	local here = UIKit.label({ Text = "", Font = UIKit.Fonts.Bold, TextColor3 = UIKit.Colors.SubText, Position = UDim2.fromOffset(16, 40),
+		Size = UDim2.new(1, -32, 0, 18), TextXAlignment = Enum.TextXAlignment.Left, Parent = side }, 14)
+	UIKit.new("Frame", { Position = UDim2.fromOffset(16, 64), Size = UDim2.new(1, -32, 0, 1), BackgroundColor3 = GOLD, BackgroundTransparency = 0.5,
+		BorderSizePixel = 0, Parent = side })
+	local list = UIKit.new("ScrollingFrame", {
+		Position = UDim2.fromOffset(10, 72),
+		Size = UDim2.new(1, -20, 1, -82),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 4,
+		ScrollBarImageColor3 = GOLD,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollingDirection = Enum.ScrollingDirection.Y,
+		Parent = side,
+	})
+	UIKit.new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder, Parent = list })
+	UIKit.new("UIPadding", { PaddingLeft = UDim.new(0, 2), PaddingRight = UDim.new(0, 8), PaddingTop = UDim.new(0, 2), PaddingBottom = UDim.new(0, 2),
+		Parent = list })
+
+	-- La colonne prend la largeur laissée par la carte (carré de la hauteur du
+	-- contenu). Tailles en pixels « virtuels » : la fenêtre a son propre UIScale.
+	local windowScale = panel.Window:FindFirstChildWhichIsA("UIScale")
+	local function layout()
+		local scale = windowScale and math.max(windowScale.Scale, 0.01) or 1
+		local size = content.AbsoluteSize / scale
+		side.Size = UDim2.new(0, math.max(240, size.X - size.Y - 18), 1, 0)
+	end
+	content:GetPropertyChangedSignal("AbsoluteSize"):Connect(layout)
+
+	local pins = {}
+	local rows = {}
+	local function highlight(id: string?)
+		for pid, pin in pairs(pins) do
+			local on = pid == id
+			UIKit.tween(pin.Scale, 0.15, { Scale = on and 1.6 or 1 }, Enum.EasingStyle.Back)
+		end
+		for rid, row in pairs(rows) do
+			UIKit.tween(row, 0.12, { BackgroundTransparency = rid == id and 0.05 or 0.55 })
+		end
+	end
+
+	for i, point in ipairs(VillageData.Teleports) do
+		local color = point.Color or Color3.fromRGB(150, 235, 255)
+		-- Repère sur la carte : losange coloré cerclé de brun.
 		local p = WorldMap.toMap(point.Pos.X, point.Pos.Y)
 		local pin = UIKit.new("TextButton", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(p.X, p.Y),
-			Size = UDim2.fromOffset(24, 24),
-			BackgroundColor3 = Color3.fromRGB(110, 60, 180),
+			Size = UDim2.fromOffset(18, 18),
+			Rotation = 45,
+			BackgroundColor3 = color,
 			Text = "",
 			AutoButtonColor = false,
+			Selectable = false,
 			ZIndex = 10,
 			Parent = mapFrame,
 		})
-		UIKit.new("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = pin })
-		UIKit.stroke(pin, Color3.fromRGB(255, 220, 130), 3, 0)
-		local core = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.4, 0.4),
-			Rotation = 45, BackgroundColor3 = Color3.fromRGB(150, 235, 255), ZIndex = 11, Parent = pin })
-		core.Active = false
-		local tag = UIKit.new("Frame", {
-			AnchorPoint = point.Side == "Left" and Vector2.new(1, 0.5) or point.Side == "Right" and Vector2.new(0, 0.5)
-				or point.Side == "Top" and Vector2.new(0.5, 1) or Vector2.new(0.5, 0),
-			Position = point.Side == "Left" and UDim2.new(0, -4, 0.5, 0) or point.Side == "Right" and UDim2.new(1, 4, 0.5, 0)
-				or point.Side == "Top" and UDim2.new(0.5, 0, 0, -4) or UDim2.new(0.5, 0, 1, 4),
-			Size = UDim2.fromOffset(utf8.len(point.Label) * 8 + 18, 22),
-			BackgroundColor3 = Color3.fromRGB(25, 18, 35),
-			BackgroundTransparency = 0.15,
-			ZIndex = 12,
-			Parent = pin,
+		UIKit.stroke(pin, Color3.fromRGB(60, 30, 10), 2.5, 0)
+		local pinScale = UIKit.new("UIScale", { Parent = pin })
+		local dot = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.36, 0.36),
+			BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 11, Parent = pin })
+		dot.Active = false
+		pins[point.Id] = { Scale = pinScale }
+
+		-- Ligne de la liste : losange de couleur, nom, description, flèche.
+		local row = UIKit.new("TextButton", {
+			Name = point.Id,
+			LayoutOrder = i,
+			Size = UDim2.new(1, 0, 0, 54),
+			BackgroundColor3 = Color3.fromRGB(70, 45, 105),
+			BackgroundTransparency = 0.55,
+			Text = "",
+			AutoButtonColor = false,
+			Selectable = true,
+			Parent = list,
 		})
-		UIKit.corner(tag, 6)
-		UIKit.stroke(tag, Color3.fromRGB(232, 190, 105), 1, 0.3)
-		UIKit.label({ Text = point.Label, Font = UIKit.Fonts.Black, TextColor3 = Color3.fromRGB(255, 240, 210), Size = UDim2.fromScale(1, 1),
-			ZIndex = 13, Parent = tag }, 13)
-		local scale = UIKit.new("UIScale", { Parent = pin })
-		pin.MouseEnter:Connect(function()
-			UIKit.tween(scale, 0.15, { Scale = 1.2 }, Enum.EasingStyle.Back)
-		end)
-		pin.MouseLeave:Connect(function()
-			UIKit.tween(scale, 0.15, { Scale = 1 })
-		end)
-		pin.Activated:Connect(function()
+		UIKit.corner(row, 8)
+		UIKit.stroke(row, GOLD, 1, 0.6)
+		rows[point.Id] = row
+		local badge = UIKit.new("Frame", { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 14, 0.5, 0), Size = UDim2.fromOffset(18, 18),
+			Rotation = 45, BackgroundColor3 = color, Parent = row })
+		UIKit.stroke(badge, Color3.fromRGB(255, 225, 150), 2, 0)
+		badge.Active = false
+		local name = UIKit.label({ Text = point.Label, Font = UIKit.Fonts.Black, TextColor3 = Color3.fromRGB(255, 240, 210), Position = UDim2.fromOffset(46, 7),
+			Size = UDim2.new(1, -76, 0, 22), TextXAlignment = Enum.TextXAlignment.Left, Parent = row }, 18)
+		name.Active = false
+		local desc = UIKit.label({ Text = point.Desc or "", Font = UIKit.Fonts.Body, TextColor3 = UIKit.Colors.SubText, Position = UDim2.fromOffset(46, 29),
+			Size = UDim2.new(1, -76, 0, 17), TextXAlignment = Enum.TextXAlignment.Left, Parent = row }, 14)
+		desc.Active = false
+		local arrow = UIKit.label({ Text = "›", Font = UIKit.Fonts.Black, TextColor3 = GOLD, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0),
+			Size = UDim2.fromOffset(20, 30), Parent = row }, 28)
+		arrow.Active = false
+
+		local function travel()
 			UIKit.playSound("Reveal", 0.4, 1.3)
 			teleport(point.Id)
+		end
+		for _, b in ipairs({ row, pin }) do
+			b.MouseEnter:Connect(function()
+				highlight(point.Id)
+			end)
+			b.MouseLeave:Connect(function()
+				highlight(nil)
+			end)
+			b.Activated:Connect(travel)
+		end
+		row.SelectionGained:Connect(function()
+			highlight(point.Id)
 		end)
 	end
 
-	UIKit.label({
-		Text = "Clique sur un point pour t'y téléporter",
-		Font = UIKit.Fonts.Bold,
-		TextColor3 = Color3.fromRGB(225, 215, 195),
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, 8),
-		Size = UDim2.new(1, 0, 0, 20),
-		ZIndex = 15,
-		Parent = content,
-	}, 16)
+	-- « Tu es près de » : destination la plus proche du joueur, à l'ouverture.
+	local function refreshHere()
+		local character = Players.LocalPlayer.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if not root then
+			here.Text = ""
+			return
+		end
+		local flat = Vector2.new(root.Position.X, root.Position.Z)
+		local best, label = math.huge, nil
+		for _, point in ipairs(VillageData.Teleports) do
+			local d = (flat - point.Pos).Magnitude
+			if d < best then
+				best, label = d, point.Label
+			end
+		end
+		here.Text = if label then "Tu es près de : " .. label else ""
+	end
+	local baseOpen = panel.Open
+	function panel:Open()
+		refreshHere()
+		highlight(nil)
+		baseOpen(self)
+		task.defer(layout)
+	end
+	task.defer(layout)
 	return panel
 end
 

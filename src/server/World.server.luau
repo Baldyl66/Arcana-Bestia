@@ -1,7 +1,7 @@
 -- Génère le monde d'Arcana Bestia au démarrage du serveur : l'arène de
--- l'autel au centre, la ville de Brumeval tout autour (BrumevalMap), les six
--- Arènes des Champions (ArenaBuilder), douves, prairie et montagnes en toile de
--- fond, éclairage. Les PNJ et la boutique sont placés par Village.server.luau.
+-- l'autel au centre, la cité fortifiée de Brumeval tout autour (sol pavé,
+-- remparts, portes, Arène des Champions), montagnes en toile de fond et
+-- éclairage. Les maisons, places et PNJ sont construits par Village.server.luau.
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9,7 +9,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VillageData = require(ReplicatedStorage:WaitForChild("Configs"):WaitForChild("VillageData"))
 local ArcanaProps = require(game:GetService("ServerScriptService"):WaitForChild("ArcanaProps"))
 local ArenaBuilder = require(game:GetService("ServerScriptService"):WaitForChild("ArenaBuilder"))
-local BrumevalMap = require(game:GetService("ServerScriptService"):WaitForChild("BrumevalMap"))
 
 local Terrain = workspace.Terrain
 
@@ -39,6 +38,7 @@ local COLS = GEN_HALF * 2 // RES
 
 local L = VillageData.Layout
 local GROUND = L.Ground
+local WALL, WALL_T, WALL_H = L.Wall, L.WallThickness, L.WallHeight
 -- Eau des douves : les voxels sous ce niveau sont remplis d'eau.
 local WATER = -3
 
@@ -92,20 +92,63 @@ local function onPath(x: number, z: number): boolean
 	return false
 end
 
+-- Allées pavées entre les quartiers.
+local function onStonePath(x: number, z: number, margin: number?): boolean
+	local p = Vector2.new(x, z)
+	local extra = margin or 0
+	for _, seg in ipairs(L.StonePaths or {}) do
+		local a, b = seg[1], seg[2]
+		local ab = b - a
+		local t = math.clamp((p - a):Dot(ab) / ab:Dot(ab), 0, 1)
+		local half = seg[3] / 2 + extra
+		if (p - (a + ab * t)).Magnitude <= half then
+			return true
+		end
+	end
+	return false
+end
+
+-- Cours en terre battue des quartiers.
+local function inYard(x: number, z: number): boolean
+	for _, r in ipairs({ L.BarracksYard, L.TrainingYard, L.StableYard, L.WarehouseYard }) do
+		if inRect(x, z, r, 0) then
+			return true
+		end
+	end
+	return false
+end
+
 -- La surface rendue des voxels se trouve une demi-case (2 studs) au-dessus
 -- de la hauteur écrite : on compense pour que le sol soit pile à GROUND.
 local SURFACE_OFFSET = RES / 2
 
--- Dans l'enceinte, le sol visible est la dalle de la ville (BrumevalMap) : le
--- terrain passe 3 studs dessous pour ne jamais la traverser.
-local CITY_FLOOR = GROUND - 3
+-- Zones des Arènes des Champions (est et ouest) : sol plat et dallé, en
+-- RECTANGLE autour des trois arènes, de l'estrade de Varek (devant, côté
+-- entrée) jusqu'aux étendards (au fond). `margin` élargit le rectangle :
+-- 8 = le dallage exact, plus pour garder le sol plat ou écarter les arbres.
+local ARENA_ZONES = VillageData.arenaZones()
+local ARENA = VillageData.Arena
+-- Le dallage couvre tout le bloc de la ville (dimensions dans VillageData.Arena).
+local ZONE_FRONT = ARENA.ZoneFront
+local ZONE_BACK = ARENA.ZoneBack
+local ZONE_HALF_WIDTH = ARENA.ZoneHalfWidth
+local function nearArenas(x: number, z: number, margin: number): boolean
+	local extra = margin - 8
+	for _, zone in ipairs(ARENA_ZONES) do
+		local rel = Vector2.new(x, z) - zone.Center
+		local along = rel:Dot(zone.Gate) -- positif vers l'entrée de la zone
+		local across = math.abs(rel.X * -zone.Gate.Y + rel.Y * zone.Gate.X)
+		if along <= ZONE_FRONT + extra and along >= -ZONE_BACK - extra and across <= ZONE_HALF_WIDTH + extra then
+			return true
+		end
+	end
+	return false
+end
 
 local function heightAt(x: number, z: number): number
 	local reach = math.max(math.abs(x), math.abs(z))
 	local h = GROUND
-	if reach <= L.Half then
-		h = CITY_FLOOR
-	elseif reach > L.MoatInner - 4 and reach < L.MoatOuter + 4 then
+	if reach > L.MoatInner - 4 and reach < L.MoatOuter + 4 then
 		-- Douves : berges en pente douce, fond plat.
 		local into = math.min(reach - (L.MoatInner - 4), (L.MoatOuter + 4) - reach)
 		h = GROUND - 11 * smoothstep(0, 7, into)
@@ -117,7 +160,7 @@ local function heightAt(x: number, z: number): number
 			h += smoothstep(0, 140, d) * (25 + ridged(x, z) * 140 + fbm(x / 90, z / 90, 3, 2.2) * 20) + smoothstep(80, 220, d) * 30
 		end
 		-- Les chemins restent plats.
-		if onPath(x, z) then
+		if onPath(x, z) or nearArenas(x, z, 10) then
 			h = GROUND
 		end
 	end
@@ -126,15 +169,44 @@ end
 
 local function surfaceMaterial(x: number, z: number, h: number, slope: number): Enum.Material
 	local reach = math.max(math.abs(x), math.abs(z))
-	if reach <= L.Half then
-		-- Sous la dalle de la ville : invisible.
-		return M.Ground
+	local d = math.sqrt(x * x + z * z)
+	if reach <= WALL then
+		if d <= L.Plaza then
+			-- Boulevard autour de l'arène et bordure de la place en pavés plus sombres.
+			if (d >= L.RingInner and d <= L.RingOuter) or d >= L.Plaza - 5 then
+				return M.Cobblestone
+			end
+			return M.Pavement
+		end
+		if nearArenas(x, z, 8) then
+			return M.Pavement
+		end
+		-- Marge de 2 studs : la terre labourée va jusqu'aux clôtures, sans herbe qui dépasse.
+		if inRect(x, z, L.Fields, 2) or inRect(x, z, L.VegetableGarden, 2) then
+			return M.Mud
+		end
+		-- Grand-Place et cour d'honneur dallées ; rues pavées. (L'ancienne cour des
+		-- artisans, pavée, a laissé place aux arènes de l'ouest : pelouse comme à l'est.)
+		if inRect(x, z, L.MarketSquare, 0) or inRect(x, z, L.HonorCourt, 0) then
+			return M.Pavement
+		end
+		if onPath(x, z) or onStonePath(x, z) then
+			return M.Cobblestone
+		end
+		if inYard(x, z) then
+			return (math.noise(x / 14, z / 14, 8.8) > 0.3) and M.Mud or M.Ground
+		end
+		-- Pelouse uniforme : seule la matière Grass porte les brins d'herbe.
+		return M.Grass
 	elseif reach < L.MoatOuter + 4 then
 		-- Pied des remparts et berges des douves.
 		return (reach > L.MoatInner - 1 and reach < L.MoatOuter + 1) and M.Mud or M.Ground
 	end
 	if onPath(x, z) then
 		return M.Ground
+	end
+	if nearArenas(x, z, 8) then
+		return M.Pavement
 	end
 	if h > 130 + math.noise(x / 40, z / 40, 1.7) * 15 and slope < 1.1 then
 		return M.Snow
@@ -669,6 +741,287 @@ end
 
 
 ---------------------------------------------------------------------------
+-- Remparts : murs crénelés avec chemin de ronde, tours, portes fermées et
+-- escaliers d'accès côté ville.
+---------------------------------------------------------------------------
+local STONE = Color3.fromRGB(152, 144, 132)
+local STONE_DARK = Color3.fromRGB(116, 108, 98)
+local ROOF_RED = Color3.fromRGB(176, 72, 46)
+local IRON = Color3.fromRGB(40, 40, 46)
+local WOOD = Color3.fromRGB(92, 62, 38)
+
+-- Variation de teinte de la pierre : chaque pan de mur, merlon ou tour a sa
+-- nuance, ce qui casse l'aspect « bloc uni ».
+local stoneRandom = Random.new(31)
+local function stoneTint(): Color3
+	return STONE:Lerp(STONE_DARK, stoneRandom:NextNumber(0, 0.55)):Lerp(Color3.fromRGB(150, 138, 112), stoneRandom:NextNumber(0, 0.25))
+end
+
+local function signText(board: BasePart, text: string, face: Enum.NormalId, color: Color3)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = face
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 30
+	gui.Parent = board
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Font = Enum.Font.Fantasy
+	label.TextScaled = true
+	label.TextColor3 = color
+	label.Text = text
+	label.Parent = gui
+end
+
+-- Tour ronde : fût, couronne crénelée, toit conique et oriflamme.
+local function tower(pos: Vector3, radius: number, height: number, parent: Instance)
+	local m = Instance.new("Model")
+	m.Name = "Tower"
+	m.Parent = parent
+	local tint = stoneTint()
+	part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(height, radius * 2, radius * 2), CFrame = vertical(CFrame.new(pos + Vector3.new(0, height / 2, 0))),
+		Material = M.Cobblestone, Color = tint, Parent = m })
+	-- Socle taluté plus large et bande de mousse au pied.
+	part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(4, radius * 2 + 2, radius * 2 + 2), CFrame = vertical(CFrame.new(pos + Vector3.new(0, 2, 0))),
+		Material = M.Limestone, Color = STONE_DARK, Parent = m })
+	decorative(part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(1, radius * 2 + 2.4, radius * 2 + 2.4), CFrame = vertical(CFrame.new(pos + Vector3.new(0, 0.5, 0))),
+		Material = M.LeafyGrass, Color = Color3.fromRGB(72, 96, 50), Parent = m }))
+	part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(2, radius * 2 + 1.6, radius * 2 + 1.6), CFrame = vertical(CFrame.new(pos + Vector3.new(0, height - 1, 0))),
+		Material = M.Limestone, Color = STONE_DARK, Parent = m })
+	for i = 0, 11 do
+		local a = i / 12 * math.pi * 2
+		part({ Size = Vector3.new(2, 2.6, 1.4), CFrame = CFrame.new(pos + Vector3.new(math.cos(a) * (radius + 0.3), height + 1.3, math.sin(a) * (radius + 0.3)))
+			* CFrame.Angles(0, -a + math.pi / 2, 0), Material = M.Cobblestone, Color = tint, Parent = m })
+	end
+	-- Meurtrières.
+	for level = 1, 2 do
+		for i = 0, 3 do
+			local a = i / 4 * math.pi * 2 + level * 0.6
+			decorative(part({ Size = Vector3.new(0.8, 3, 0.3), CFrame = CFrame.new(pos + Vector3.new(math.cos(a) * radius, height * level / 3, math.sin(a) * radius))
+				* CFrame.Angles(0, -a + math.pi / 2, 0), Material = M.Slate, Color = Color3.fromRGB(30, 28, 32), Parent = m }))
+		end
+	end
+	for i = 0, 6 do
+		local d = (radius * 2 + 2) * (1 - i / 7)
+		part({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.4, d, d), CFrame = vertical(CFrame.new(pos + Vector3.new(0, height + 3.2 + i * 1.3, 0))),
+			Material = M.ClayRoofTiles, Color = ROOF_RED:Lerp(Color3.fromRGB(110, 46, 34), (i % 2) * 0.25), Parent = m })
+	end
+	local top = pos + Vector3.new(0, height + 3.2 + 7 * 1.3, 0)
+	part({ Size = Vector3.new(0.3, 6, 0.3), CFrame = CFrame.new(top + Vector3.new(0, 2.5, 0)), Material = M.Metal, Color = IRON, Parent = m })
+	decorative(part({ Size = Vector3.new(3.4, 1.6, 0.1), CFrame = CFrame.new(top + Vector3.new(1.85, 4.6, 0)), Material = M.Fabric,
+		Color = Color3.fromRGB(120, 40, 150), Parent = m }))
+end
+
+-- Lanterne murale (portes).
+local function wallTorch(cf: CFrame, parent: Instance)
+	decorative(part({ Size = Vector3.new(0.3, 0.3, 1), CFrame = cf * CFrame.new(0, 0, -0.5), Material = M.Metal, Color = IRON, Parent = parent }))
+	local flame = part({ Size = Vector3.new(0.8, 1.1, 0.8), CFrame = cf * CFrame.new(0, -0.4, -1), Material = M.Neon, Color = Color3.fromRGB(255, 190, 100), Parent = parent })
+	decorative(flame)
+	pointLight(flame, Color3.fromRGB(255, 180, 100), 1.6, 20)
+end
+
+local function buildRamparts()
+	local walls = folder("Ramparts", World)
+	local E = WALL + WALL_T
+	local mid = WALL + WALL_T / 2
+	-- Enceinte fermée : les remparts sont le bord de la carte (aucune ouverture).
+	local gateNames: { [string]: string } = {}
+	local GATE = 8
+
+	for _, dir in ipairs({ Vector2.new(0, -1), Vector2.new(0, 1), Vector2.new(-1, 0), Vector2.new(1, 0) }) do
+		-- Repère du côté : X le long du mur, -Z vers la ville, origine au milieu du mur.
+		local origin = Vector3.new(dir.X * mid, GROUND, dir.Y * mid)
+		local frame = CFrame.lookAt(origin, origin - Vector3.new(dir.X, 0, dir.Y))
+		local key = string.format("%d,%d", dir.X, dir.Y)
+		local gateName = gateNames[key]
+
+		local function wallBlock(x0: number, x1: number, y0: number)
+			-- Mur découpé en pans d'environ 34 studs, chacun avec sa nuance.
+			local count = math.max(1, math.ceil((x1 - x0) / 34))
+			local seg = (x1 - x0) / count
+			for s = 0, count - 1 do
+				local a = x0 + s * seg
+				part({ Name = "Wall", Size = Vector3.new(seg, WALL_H - y0, WALL_T), CFrame = frame * CFrame.new(a + seg / 2, (y0 + WALL_H) / 2, 0),
+					Material = M.Cobblestone, Color = stoneTint(), Parent = walls })
+			end
+			if y0 == GROUND then
+				decorative(part({ Size = Vector3.new(x1 - x0, 3, 0.8), CFrame = frame * CFrame.new((x0 + x1) / 2, 1.5, -WALL_T / 2 - 0.3),
+					Material = M.Limestone, Color = STONE_DARK, Parent = walls }))
+				-- Mousse au pied du mur côté douves et corniche sous les créneaux.
+				decorative(part({ Size = Vector3.new(x1 - x0, 1.4, 0.6), CFrame = frame * CFrame.new((x0 + x1) / 2, 0.7, WALL_T / 2 + 0.25),
+					Material = M.LeafyGrass, Color = Color3.fromRGB(72, 96, 50), Parent = walls }))
+				decorative(part({ Size = Vector3.new(x1 - x0, 1.1, 0.8), CFrame = frame * CFrame.new((x0 + x1) / 2, WALL_H - 0.6, WALL_T / 2 + 0.35),
+					Material = M.Limestone, Color = STONE_DARK, Parent = walls }))
+			end
+			-- Chemin de ronde dallé.
+			part({ Name = "Walkway", Size = Vector3.new(x1 - x0, 0.4, WALL_T), CFrame = frame * CFrame.new((x0 + x1) / 2, WALL_H + 0.2, 0),
+				Material = M.Slate, Color = Color3.fromRGB(128, 122, 116), Parent = walls })
+		end
+		if gateName then
+			wallBlock(-E, -GATE, GROUND)
+			wallBlock(GATE, E, GROUND)
+			wallBlock(-GATE, GATE, 16)
+		else
+			wallBlock(-E, E, GROUND)
+		end
+
+		-- Contreforts côté ville (hors grande porte) : rythment le mur.
+		for x = -E + 18, E - 18, 24 do
+			local nearGate = key == "0,1" and math.abs(x) < 16
+			if not nearGate then
+				part({ Name = "Buttress", Size = Vector3.new(3, WALL_H - 1.5, 1.6), CFrame = frame * CFrame.new(x, (WALL_H - 1.5) / 2, -WALL_T / 2 - 0.8),
+					Material = M.Limestone, Color = STONE_DARK, Parent = walls })
+				-- Chaperon en pente (haut contre le mur, bas côté ville).
+				part({ ClassName = "WedgePart", Size = Vector3.new(3, 1.9, 1.6), CFrame = frame * CFrame.new(x, WALL_H - 0.55, -WALL_T / 2 - 0.8),
+					Material = M.Limestone, Color = STONE_DARK, Parent = walls })
+			end
+		end
+
+		-- Tours en saillie vers l'extérieur, merlons entre elles.
+		local towers = { -220, -110, 110, 220 }
+		if gateName then
+			table.insert(towers, -15)
+			table.insert(towers, 15)
+		end
+		for x = -E + 2, E - 2, 4 do
+			local free = true
+			for _, t in ipairs(towers) do
+				if math.abs(x - t) < 8 then
+					free = false
+				end
+			end
+			if free then
+				part({ Name = "Merlon", Size = Vector3.new(2.2, 3, 1.4), CFrame = frame * CFrame.new(x, WALL_H + 1.9, WALL_T / 2 - 0.7),
+					Material = M.Cobblestone, Color = stoneTint(), Parent = walls })
+			end
+		end
+		for _, t in ipairs(towers) do
+			local isGateTower = math.abs(t) < 20
+			tower((frame * CFrame.new(t, 0, WALL_T / 2 + 3)).Position, isGateTower and 6.5 or 7, WALL_H + (isGateTower and 14 or 10), walls)
+		end
+
+		if gateName then
+			-- Herse levée : seules ses dents dépassent sous la voûte.
+			for x = -GATE + 1, GATE - 1, 2 do
+				decorative(part({ Size = Vector3.new(0.35, 2.5, 0.35), CFrame = frame * CFrame.new(x, 14.8, 0), Material = M.Metal, Color = IRON, Parent = walls }))
+			end
+			-- Pont-levis de planches jusqu'à l'autre rive, chaînes vers les tours.
+			local bridgeStart, bridgeEnd = WALL_T / 2, (L.MoatOuter + 5) - mid
+			local length = bridgeEnd - bridgeStart
+			local deck = frame * CFrame.new(0, 0.25, (bridgeStart + bridgeEnd) / 2)
+			part({ Name = "Drawbridge", Size = Vector3.new(GATE * 2 - 1, 0.6, length), CFrame = deck, Material = M.WoodPlanks, Color = WOOD, Parent = walls })
+			for z = -length / 2 + 1, length / 2 - 1, 3 do
+				decorative(part({ Size = Vector3.new(GATE * 2 - 0.8, 0.15, 0.25), CFrame = deck * CFrame.new(0, 0.35, z), Material = M.Wood,
+					Color = Color3.fromRGB(70, 46, 28), Parent = walls }))
+			end
+			for _, side in ipairs({ -1, 1 }) do
+				part({ Size = Vector3.new(0.6, 2.4, length), CFrame = deck * CFrame.new(side * (GATE - 0.6), 1.2, 0), Material = M.Wood, Color = WOOD, Parent = walls })
+				local a0 = (deck * CFrame.new(side * (GATE - 0.6), 2.4, length / 2)).Position
+				local a1 = (frame * CFrame.new(side * (GATE + 1), 15, WALL_T / 2)).Position
+				decorative(part({ Size = Vector3.new(0.3, 0.3, (a1 - a0).Magnitude), CFrame = CFrame.lookAt((a0 + a1) / 2, a1), Material = M.Metal,
+					Color = IRON, Parent = walls }))
+			end
+			-- Encadrement, linteau gravé, torches et bannières côté ville.
+			for _, side in ipairs({ -1, 1 }) do
+				part({ Size = Vector3.new(2, 18, 1.2), CFrame = frame * CFrame.new(side * (GATE + 1), 9, -WALL_T / 2 - 0.6), Material = M.Limestone,
+					Color = Color3.fromRGB(196, 186, 168), Parent = walls })
+				wallTorch(frame * CFrame.new(side * (GATE + 3.5), 10, -WALL_T / 2), walls)
+				decorative(part({ Size = Vector3.new(3, 9, 0.15), CFrame = frame * CFrame.new(side * (GATE + 6), WALL_H - 6, -WALL_T / 2 - 0.1),
+					Material = M.Fabric, Color = Color3.fromRGB(110, 50, 170), Parent = walls }))
+			end
+			local lintel = part({ Size = Vector3.new(GATE * 2 + 6, 3, 1.4), CFrame = frame * CFrame.new(0, 17.5, -WALL_T / 2 - 0.7), Material = M.Limestone,
+				Color = Color3.fromRGB(196, 186, 168), Parent = walls })
+			signText(lintel, gateName, Enum.NormalId.Front, Color3.fromRGB(60, 45, 30))
+		end
+
+		-- Grande porte du Sud, fermée : vantaux cloutés et linteau côté château.
+		if key == "0,1" then
+			for _, side in ipairs({ -1, 1 }) do
+				local leaf = frame * CFrame.new(side * 4, 8, -WALL_T / 2 - 0.4)
+				part({ Name = "GateDoor", Size = Vector3.new(8, 16, 0.8), CFrame = leaf, Material = M.WoodPlanks, Color = WOOD, Parent = walls })
+				for _, y in ipairs({ -5, 0, 5 }) do
+					decorative(part({ Size = Vector3.new(7.6, 0.5, 0.2), CFrame = leaf * CFrame.new(0, y, -0.5), Material = M.Metal, Color = IRON, Parent = walls }))
+				end
+				part({ Size = Vector3.new(2, 18, 1.2), CFrame = frame * CFrame.new(side * 9, 9, -WALL_T / 2 - 0.6), Material = M.Limestone,
+					Color = Color3.fromRGB(196, 186, 168), Parent = walls })
+				wallTorch(frame * CFrame.new(side * 11.5, 10, -WALL_T / 2), walls)
+			end
+			local lintel = part({ Size = Vector3.new(22, 3, 1.4), CFrame = frame * CFrame.new(0, 17.5, -WALL_T / 2 - 0.7), Material = M.Limestone,
+				Color = Color3.fromRGB(196, 186, 168), Parent = walls })
+			signText(lintel, "Porte du Sud", Enum.NormalId.Front, Color3.fromRGB(60, 45, 30))
+		end
+	end
+	-- Tours d'angle, décalées vers l'extérieur pour laisser le chemin de ronde libre.
+	for _, sx in ipairs({ -1, 1 }) do
+		for _, sz in ipairs({ -1, 1 }) do
+			tower(Vector3.new(sx * (E + 3), GROUND, sz * (E + 3)), 9, WALL_H + 14, walls)
+		end
+	end
+end
+
+---------------------------------------------------------------------------
+-- Donjon : grosse tour carrée crénelée dans l'angle nord-est, tourelles
+-- d'angle à toit rouge, porte et escalier tournés vers la place.
+---------------------------------------------------------------------------
+local function buildKeep()
+	local keep = Instance.new("Model")
+	keep.Name = "Keep"
+	keep.Parent = World
+	local c = L.Keep
+	local SIZE, HEIGHT = 40, 46
+	-- Façade (porte) tournée vers le centre de la place.
+	local base = CFrame.lookAt(Vector3.new(c.X, GROUND, c.Y), Vector3.new(0, GROUND, 0))
+	part({ Name = "KeepBase", Size = Vector3.new(SIZE + 4, 3, SIZE + 4), CFrame = base * CFrame.new(0, 1.5, 0), Material = M.Limestone,
+		Color = STONE_DARK, Parent = keep })
+	part({ Name = "KeepBody", Size = Vector3.new(SIZE, HEIGHT, SIZE), CFrame = base * CFrame.new(0, HEIGHT / 2, 0), Material = M.Cobblestone,
+		Color = STONE, Parent = keep })
+	-- Bandeaux, corniche et créneaux.
+	for _, y in ipairs({ HEIGHT * 0.45, HEIGHT - 1 }) do
+		decorative(part({ Size = Vector3.new(SIZE + 1.2, 1.2, SIZE + 1.2), CFrame = base * CFrame.new(0, y, 0), Material = M.Limestone,
+			Color = STONE_DARK, Parent = keep }))
+	end
+	for side = 0, 3 do
+		local rot = base * CFrame.Angles(0, side * math.pi / 2, 0)
+		for x = -SIZE / 2 + 2, SIZE / 2 - 2, 4 do
+			part({ Name = "Merlon", Size = Vector3.new(2.2, 3, 1.4), CFrame = rot * CFrame.new(x, HEIGHT + 1.5, -SIZE / 2 + 0.7), Material = M.Cobblestone,
+				Color = STONE, Parent = keep })
+		end
+		-- Fenêtres à meneaux sur deux étages.
+		for _, y in ipairs({ HEIGHT * 0.3, HEIGHT * 0.65 }) do
+			for _, x in ipairs({ -10, 10 }) do
+				local w = decorative(part({ Size = Vector3.new(3, 5, 0.3), CFrame = rot * CFrame.new(x, y, -SIZE / 2 - 0.1), Material = M.Glass,
+					Color = Color3.fromRGB(255, 200, 120), Transparency = 0.1, Parent = keep }))
+				_ = w
+				decorative(part({ Size = Vector3.new(0.4, 5, 0.4), CFrame = rot * CFrame.new(x, y, -SIZE / 2 - 0.25), Material = M.Wood, Color = WOOD, Parent = keep }))
+			end
+		end
+	end
+	-- Tourelles d'angle à toit rouge.
+	for _, sx in ipairs({ -1, 1 }) do
+		for _, sz in ipairs({ -1, 1 }) do
+			tower((base * CFrame.new(sx * SIZE / 2, HEIGHT - 14, sz * SIZE / 2)).Position, 4.5, 22, keep)
+		end
+	end
+	-- Porte en arc, escalier et bannières.
+	local front = base * CFrame.new(0, 0, -SIZE / 2)
+	part({ Size = Vector3.new(10, 14, 1.4), CFrame = front * CFrame.new(0, 7 + 3, -0.5), Material = M.Limestone, Color = Color3.fromRGB(196, 186, 168), Parent = keep })
+	part({ Name = "KeepDoor", Size = Vector3.new(7, 11, 0.6), CFrame = front * CFrame.new(0, 5.5 + 3, -1.3), Material = M.WoodPlanks, Color = WOOD, Parent = keep })
+	for step = 0, 2 do
+		part({ Size = Vector3.new(14, 1, 3), CFrame = front * CFrame.new(0, 2.5 - step, -2.5 - step * 3), Material = M.Limestone,
+			Color = STONE_DARK, Parent = keep })
+	end
+	for _, x in ipairs({ -11, 11 }) do
+		decorative(part({ Size = Vector3.new(4, 14, 0.15), CFrame = front * CFrame.new(x, HEIGHT * 0.6, -0.15), Material = M.Fabric,
+			Color = Color3.fromRGB(150, 32, 42), Parent = keep }))
+		wallTorch(front * CFrame.new(x * 0.6, 12, 0) * CFrame.Angles(0, math.pi, 0), keep)
+	end
+	-- Mât et grand étendard au sommet.
+	part({ Size = Vector3.new(0.5, 14, 0.5), CFrame = base * CFrame.new(0, HEIGHT + 7, 0), Material = M.Metal, Color = IRON, Parent = keep })
+	decorative(part({ Size = Vector3.new(6, 3.5, 0.15), CFrame = base * CFrame.new(3.2, HEIGHT + 12, 0), Material = M.Fabric,
+		Color = Color3.fromRGB(150, 32, 42), Parent = keep }))
+end
+
+---------------------------------------------------------------------------
 -- L'Arène des Champions : colisée à arcades sur deux niveaux, piste de sable,
 -- gradins, loge d'honneur et grande porte face à l'avenue de l'Est.
 ---------------------------------------------------------------------------
@@ -771,7 +1124,7 @@ local function buildMeadow()
 				return false
 			end
 		end
-		return true
+		return not nearArenas(x, z, 16)
 	end
 	for x = -L.Hills - 120, L.Hills + 120, 13 do
 		for z = -L.Hills - 120, L.Hills + 120, 13 do
@@ -930,7 +1283,8 @@ setupLighting()
 generateTerrain()
 buildArena()
 workspace:SetAttribute("WorldProgress", 0.75)
-BrumevalMap.build(World)
+buildRamparts()
+buildKeep()
 buildArenas()
 buildMeadow()
 buildBounds()

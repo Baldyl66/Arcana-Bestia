@@ -491,7 +491,7 @@ function ArenaBuilder.buildZone(zone, parent: Instance, groundY: number): Model
 	origine = CFrame.lookAt(c, c + v3(zone.Gate, 0))
 	local m = Instance.new("Model")
 	m.Name = "Zone" .. zone.Id
-	local front = -DIM.VarekFront -- estrade de Varek, sur le parvis du colisée
+	local front = -(HL + 24) -- estrade de Varek, bien en avant des arènes
 	local entree = -(DIM.ZoneFront - 4) -- panneau : bord de la zone, à l'arrivée de l'avenue
 	-- Estrade ronde de Varek
 	cylindre(m, CFrame.new(0, -1, front), 9, 1.6, { Name = "Estrade", Color = PIERRE, Material = Enum.Material.Granite })

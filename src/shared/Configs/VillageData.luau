@@ -15,10 +15,11 @@ VillageData.Shop = {
 VillageData.FusionCost = 4
 VillageData.SellBonus = 1.5
 
--- Plan de la ville (X = est, Z = sud, coordonnées monde). Lu par World, Village
--- et la carte du monde. Le décor est construit par BrumevalMap (plan vue de
--- dessus de 680 × 680 studs, centre du plan = origine du monde) : enceinte
--- carrée entourée de douves, rues en damier, neuf quartiers autour de l'autel.
+-- Plan du château (X = est, Z = sud, coordonnées monde). Lu par World et Village.
+-- L'arène de l'autel occupe le centre d'une grande place ronde ; autour, les
+-- quartiers du château (forge, marché, donjon, entrepôt, champs, bergerie,
+-- potager) dans une enceinte carrée entourée de douves. Hors les murs : prairie,
+-- sapins, chemins de terre et petit colisée à l'est.
 local function rect(x0: number, z0: number, x1: number, z1: number)
 	return { Vector2.new(math.min(x0, x1), math.min(z0, z1)), Vector2.new(math.max(x0, x1), math.max(z0, z1)) }
 end
@@ -27,50 +28,70 @@ VillageData.Layout = {
 	-- Les remparts sont le bord de la carte : de Wall à Wall + WallThickness.
 	Wall = 330,
 	WallThickness = 10,
-	WallHeight = 30,
+	WallHeight = 26,
 	Ground = 0,
 	-- Douves (décor, hors d'atteinte) et collines au-delà.
 	MoatInner = 345,
 	MoatOuter = 367,
 	Hills = 400,
-	-- Grande place ronde dallée autour de l'arène de l'autel.
+	-- Boulevard autour de l'arène et grande place ronde pavée.
 	RingInner = 79,
 	RingOuter = 93,
 	Plaza = 112,
-	-- Quartiers (centres).
-	Fountain = Vector2.new(0, 225), -- médaillon de la Grand-Place (sud)
-	Forge = Vector2.new(-230, -230), -- forge de Borin (nord-ouest)
-	Gallery = Vector2.new(0, -225), -- galerie des collections (nord)
-	Park = Vector2.new(230, -230), -- parc (nord-est)
-	Exchange = Vector2.new(-230, 228), -- bourse aux cartes (sud-ouest)
-	GiantTree = Vector2.new(230, 225), -- arbre géant (sud-est)
-	-- Rues pavées (rectangles min/max) : grille, avenues et accès des quartiers.
+	-- Grille 3 × 3 : l'arène au centre, huit quartiers autour, séparés par un
+	-- boulevard carré (119 à 131 du centre) et deux grandes avenues.
+	-- Nord : donjon et cour d'honneur.
+	Keep = Vector2.new(0, -280),
+	HonorCourt = rect(-90, -235, 90, -140),
+	-- Sud : Grand-Place du marché.
+	MarketSquare = rect(-112, 140, 112, 318),
+	Fountain = Vector2.new(0, 212),
+	-- Ouest : arènes de l'ouest (ancien quartier des artisans), sur tout le bloc.
+	ArtisanYard = rect(-322, -112, -140, 112),
+	-- Forge de Borin : dans le quartier des maisons (sud-ouest), au sud de la rue.
+	Forge = Vector2.new(-177, 246),
+	-- Nord-est : caserne (logis des gardes, entraînement, écurie).
+	BarracksYard = rect(140, -322, 322, -234),
+	TrainingYard = rect(140, -210, 240, -140),
+	StableYard = rect(250, -210, 322, -140),
+	-- Sud-est : entrepôts et potager.
+	WarehouseYard = rect(140, 140, 322, 210),
+	VegetableGarden = rect(146, 236, 318, 318),
+	-- Sud-ouest : quartier des maisons.
+	Houses = rect(-322, 140, -140, 322),
+	-- Nord-ouest : ferme.
+	Fields = rect(-322, -322, -140, -236),
+	SheepPen = rect(-322, -210, -210, -140),
+	Windmill = Vector2.new(-168, -175),
+	-- Jardins fleuris aux angles du carré central.
+	Gardens = { Vector2.new(-100, -100), Vector2.new(100, -100), Vector2.new(-100, 100), Vector2.new(100, 100) },
+	-- Rues pavées (rectangles min/max).
 	Paths = {
-		-- Les quatre rues droites d'un rempart à l'autre.
-		rect(-330, -131, 330, -119), rect(-330, 119, 330, 131), rect(-131, -330, -119, 330), rect(119, -330, 131, 330),
-		-- Avenues (nord, sud jusqu'à la porte, est, ouest).
-		rect(-9, -144, 9, -104), rect(-9, 104, 9, 358), rect(104, -9, 182, 9), rect(-182, -9, -104, 9),
-		-- Rue des Échanges et accès.
-		rect(-146, 219, -111, 231), rect(111, 220, 148, 230),
-		rect(-234, 125, -226, 150), rect(225, 125, 235, 143),
-		rect(-125, -229, -103, -221), rect(103, -229, 125, -221),
-		rect(-235, -142, -225, -125), rect(-142, -195, -125, -185),
-		-- Allées en croix de la Grand-Place.
-		rect(-12, 139, 12, 322), rect(-111, 213, 111, 237),
+		-- Boulevard carré autour de la place.
+		rect(-131, -131, 131, -119), rect(-131, 119, 131, 131), rect(-131, -131, -119, 131), rect(119, -131, 131, 131),
+		-- Avenues. La nord s'arrête à la porte du donjon ; la sud s'interrompt
+		-- autour de la fontaine pour qu'elle trône au milieu de la place.
+		rect(-8, -258, 8, -112), rect(-8, 112, 8, 182), rect(-8, 242, 8, 322), rect(-162, -8, -112, 8), rect(112, -8, 162, 8),
+		-- Rues secondaires des coins (celle du sud-ouest est la rue des maisons).
+		rect(-322, -226, -131, -218), rect(131, -226, 322, -218), rect(-322, 187, -131, 195), rect(131, 218, 322, 226),
 	},
-	-- Chemins de terre en diagonale { départ, arrivée, largeur }.
+	-- Allées en dalles de pierre { départ, arrivée, largeur } : relient les rues
+	-- des coins au boulevard, et la place aux jardins d'angle puis au boulevard.
 	StonePaths = {
-		{ Vector2.new(-125, -125), Vector2.new(-50, -50), 10 },
-		{ Vector2.new(125, -125), Vector2.new(50, -50), 10 },
-		{ Vector2.new(-125, 125), Vector2.new(-50, 50), 10 },
-		{ Vector2.new(125, 125), Vector2.new(50, 50), 10 },
+		{ Vector2.new(-125, 131), Vector2.new(-125, 187), 8 },
+		{ Vector2.new(125, 131), Vector2.new(125, 218), 8 },
+		{ Vector2.new(-125, -131), Vector2.new(-125, -218), 8 },
+		{ Vector2.new(125, -131), Vector2.new(125, -218), 8 },
+		-- Chapelle et square, au sud de la rue des maisons.
+		{ Vector2.new(-225, 195), Vector2.new(-225, 300), 6 },
 	},
-	-- Arènes des Champions : deux colisées de trois arènes rectangulaires, l'un à
-	-- l'est (« Colosseum », nom historique), l'autre à l'ouest. Gate = direction de
-	-- l'entrée de la zone (degrés, vers la ville). Voir VillageData.arenaSlots().
-	Colosseum = Vector2.new(251, 0),
+	-- Arènes des Champions : deux zones de trois arènes rectangulaires, l'une à l'est
+	-- (« Colosseum », nom historique), l'autre à l'ouest. Gate = direction de l'entrée
+	-- de la zone (degrés, vers la ville). Voir VillageData.arenaSlots().
+	Colosseum = Vector2.new(231, 0),
+	ColosseumRadius = 72,
 	ColosseumGate = 180,
-	ArenaWest = Vector2.new(-251, 0),
+	ArenaWest = Vector2.new(-231, 0),
 	ArenaWestGate = 0,
 }
 
@@ -81,13 +102,12 @@ VillageData.Layout = {
 VillageData.Arena = {
 	Length = 84, -- le long de l'axe des duellistes (bouts à ±42)
 	Width = 38, -- en travers (parapets à ±19)
-	Spacing = 72, -- entre les centres de deux arènes voisines (≈ 34 studs libres entre elles)
+	Spacing = 90, -- entre les centres de deux arènes voisines (≈ 52 studs libres entre elles)
 	FloorHeight = 1.5, -- dessus du sol de combat au-dessus du sol extérieur
-	-- Bloc du colisée, depuis le centre de la zone (rue à 120, rempart à 79).
-	ZoneFront = 120, -- vers l'entrée (parvis, estrade de Varek, enseigne)
-	ZoneBack = 75, -- vers le fond (étendards)
-	ZoneHalfWidth = 115, -- en travers, de part et d'autre du centre
-	VarekFront = 94, -- estrade de Varek, sur le parvis
+	-- Dallage de la zone : tout le bloc de la ville (182 × 280 studs, marges comprises).
+	ZoneFront = 87, -- vers l'entrée (estrade de Varek, enseigne)
+	ZoneBack = 87, -- vers le fond (étendards)
+	ZoneHalfWidth = 132, -- en travers, de part et d'autre du centre
 }
 local slots = nil
 function VillageData.arenaSlots(): { any }
@@ -132,16 +152,28 @@ function VillageData.arenaZones(): { { Center: Vector2, Gate: Vector2, Id: strin
 end
 VillageData.Layout.Half = VillageData.Layout.Wall + VillageData.Layout.WallThickness
 
+-- Diagonales : sentier naturel continu de la place au coin du boulevard,
+-- à travers le jardin d'angle (4e champ « Natural » : lampadaires face à face, sans dalles).
+for _, g in ipairs(VillageData.Layout.Gardens) do
+	local u = g.Unit
+	table.insert(VillageData.Layout.StonePaths, { u * (VillageData.Layout.Plaza - 2), u * (119 * math.sqrt(2)), 7, "Natural" })
+	-- Raccord propre entre le bout du sentier et l'allée qui part vers le quartier du coin.
+	local corner = Vector2.new(math.sign(g.X) * 119, math.sign(g.Y) * 119)
+	table.insert(VillageData.Layout.StonePaths, { corner - u * 4, Vector2.new(math.sign(g.X) * 125, math.sign(g.Y) * 135), 8, "Natural" })
+end
+
 -- Quartiers, pour les indices de Pip.
 VillageData.Districts = {
 	{ Label = "la Grand-Place", Center = VillageData.Layout.Fountain },
 	{ Label = "la forge de Borin", Center = VillageData.Layout.Forge },
-	{ Label = "le colisée Ouest", Center = VillageData.Layout.ArenaWest },
-	{ Label = "la galerie des collections", Center = VillageData.Layout.Gallery },
-	{ Label = "le parc", Center = VillageData.Layout.Park },
-	{ Label = "l'arbre géant", Center = VillageData.Layout.GiantTree },
-	{ Label = "la bourse aux cartes", Center = VillageData.Layout.Exchange },
-	{ Label = "le colisée Est", Center = VillageData.Layout.Colosseum },
+	{ Label = "les arènes de l'ouest", Center = VillageData.Layout.ArenaWest },
+	{ Label = "la cour d'honneur du donjon", Center = Vector2.new(0, -190) },
+	{ Label = "la caserne", Center = Vector2.new(230, -230) },
+	{ Label = "les entrepôts", Center = Vector2.new(230, 175) },
+	{ Label = "le potager", Center = Vector2.new(230, 277) },
+	{ Label = "le quartier des maisons", Center = Vector2.new(-230, 230) },
+	{ Label = "la ferme", Center = Vector2.new(-230, -230) },
+	{ Label = "les arènes de l'est", Center = VillageData.Layout.Colosseum },
 }
 
 -- Tenues : couleurs du corps (peau, haut, manches, pantalon) + vêtements en pièces.
@@ -329,7 +361,7 @@ VillageData.Quests = {
 	{ Id = "discover5", Text = "Découvrir 5 créatures", Stat = "Discovered", Goal = 5, Reward = 200 },
 	{ Id = "market", Text = "Flâner au marché", Stat = "Visited:market", Goal = 1, Reward = 120 },
 	{ Id = "forge", Text = "Visiter la forge de Borin", Stat = "Visited:forge", Goal = 1, Reward = 120 },
-	{ Id = "keep", Text = "Visiter la galerie des collections", Stat = "Visited:keep", Goal = 1, Reward = 150 },
+	{ Id = "keep", Text = "Approcher le donjon", Stat = "Visited:keep", Goal = 1, Reward = 150 },
 	{ Id = "colosseum", Text = "Visiter l'Arène des Champions", Stat = "Visited:colosseum", Goal = 1, Reward = 150 },
 	{ Id = "open25", Text = "Ouvrir 25 boosters", Stat = "BoostersOpened", Goal = 25, Reward = 600 },
 	{ Id = "discover10", Text = "Découvrir 10 créatures", Stat = "Discovered", Goal = 10, Reward = 500 },
@@ -338,11 +370,11 @@ VillageData.Quests = {
 }
 
 VillageData.Places = {
-	market = { Label = "La Grand-Place", Center = VillageData.Layout.Fountain, Radius = 70 },
-	forge = { Label = "La forge de Borin", Center = VillageData.Layout.Forge, Radius = 60 },
-	keep = { Label = "La galerie des collections", Center = VillageData.Layout.Gallery, Radius = 70 },
-	farm = { Label = "Le parc", Center = VillageData.Layout.Park, Radius = 70 },
-	colosseum = { Label = "Les Arènes des Champions", Center = VillageData.Layout.Colosseum, Radius = 80 },
+	market = { Label = "La Grand-Place", Center = VillageData.Layout.Fountain, Radius = 60 },
+	forge = { Label = "La forge de Borin", Center = VillageData.Layout.Forge, Radius = 40 },
+	keep = { Label = "Le donjon", Center = Vector2.new(0, -230), Radius = 50 },
+	farm = { Label = "La ferme", Center = Vector2.new(-230, -260), Radius = 60 },
+	colosseum = { Label = "Les Arènes des Champions", Center = VillageData.Layout.Colosseum, Radius = 60 },
 }
 
 -- Points de téléportation de la carte du monde (coordonnées x, z au sol).
@@ -352,15 +384,13 @@ VillageData.Places = {
 VillageData.MapImage = ""
 
 VillageData.Teleports = {
-	{ Id = "arena", Label = "Autel arcanique", Pos = Vector2.new(0, 48), Side = "Right" },
-	{ Id = "market", Label = "Grand-Place", Pos = Vector2.new(0, 200), Side = "Bottom" },
-	{ Id = "west", Label = "Colisée Ouest", Pos = Vector2.new(-150, 0), Side = "Left" },
-	{ Id = "keep", Label = "Galerie", Pos = Vector2.new(0, -150), Side = "Top" },
-	{ Id = "colosseum", Label = "Colisée Est", Pos = Vector2.new(150, 0), Side = "Right" },
-	{ Id = "forge", Label = "Forge", Pos = Vector2.new(-230, -160), Side = "Left" },
-	{ Id = "park", Label = "Parc", Pos = Vector2.new(140, -220), Side = "Right" },
-	{ Id = "exchange", Label = "Bourse aux cartes", Pos = Vector2.new(-230, 140), Side = "Left" },
-	{ Id = "tree", Label = "Arbre géant", Pos = Vector2.new(230, 140), Side = "Right" },
+	{ Id = "arena", Label = "Autel arcanique", Desc = "Les boosters, au cœur de la cité", Pos = Vector2.new(0, 48), Color = Color3.fromRGB(110, 210, 240) },
+	{ Id = "market", Label = "Grand-Place", Desc = "Boutique d'Elya, fontaine et Comptoir des Merveilles", Pos = Vector2.new(0, 150), Color = Color3.fromRGB(240, 180, 80) },
+	{ Id = "keep", Label = "Donjon", Desc = "La cour d'honneur et Maelis l'archiviste", Pos = Vector2.new(0, -150), Color = Color3.fromRGB(150, 110, 210) },
+	{ Id = "colosseum", Label = "Arènes Est", Desc = "Trois arènes de duel et Varek", Pos = Vector2.new(150, 0), Color = Color3.fromRGB(220, 110, 80) },
+	{ Id = "forge", Label = "Arènes Ouest", Desc = "Trois arènes de duel et Varek", Pos = Vector2.new(-150, 0), Color = Color3.fromRGB(220, 110, 80) },
+	{ Id = "barracks", Label = "Caserne", Desc = "Capitaine Rhéa et son défi du jour", Pos = Vector2.new(150, -222), Color = Color3.fromRGB(90, 120, 190) },
+	{ Id = "houses", Label = "Maisons", Desc = "La forge de Borin et Grand-mère Odile", Pos = Vector2.new(-150, 191), Color = Color3.fromRGB(255, 130, 60) },
 }
 
 VillageData.Treasure = {

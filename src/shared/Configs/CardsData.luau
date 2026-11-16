@@ -25,7 +25,9 @@ CardsData.Elements = {
 }
 
 CardsData.Economy = {
-	StartingCoins = 500,
+	-- Rien au départ : la récompense de connexion du jour 1 (100 ◆) fait le
+	-- premier pécule, de quoi ouvrir un booster.
+	StartingCoins = 0,
 	BoosterPrice = 100,
 	CardsPerBooster = 3,
 	DailyReward = 250,

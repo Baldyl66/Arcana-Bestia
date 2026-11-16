@@ -513,7 +513,7 @@ local CHAPTERS: { Chapter } = {
 		Text = "À l'est et à l'ouest de la cité, six arènes accueillent les duels en même temps. Tu y entres avec ton Anima, sous les yeux des autres dresseurs.",
 		Points = {
 			{ Icon = "◈", Color = Color3.fromRGB(255, 120, 100), Title = "Varek", Text = "Défie un autre joueur ou entraîne-toi contre son mannequin." },
-			{ Icon = "★", Color = GOLD, Title = "Défi du jour", Text = "Capitaine Rhéa, au colisée Ouest, récompense ta première victoire de la journée." },
+			{ Icon = "★", Color = GOLD, Title = "Défi du jour", Text = "Capitaine Rhéa, à la caserne, récompense ta première victoire de la journée." },
 			{ Icon = "◎", Color = Color3.fromRGB(130, 215, 255), Title = "Spectateur", Text = "Approche-toi d'une arène pendant un duel pour le regarder en direct." },
 		},
 		Draw = function(f)
@@ -523,7 +523,7 @@ local CHAPTERS: { Chapter } = {
 	{
 		Key = "Échanges", Icon = "↔", Accent = Color3.fromRGB(110, 210, 160),
 		Title = "Le Comptoir des Échanges",
-		Text = "À la bourse aux cartes, trois tables attendent les dresseurs. Installez-vous chacun sur un cercle de la même table : l'échange s'ouvre.",
+		Text = "Sur la Grand-Place, trois tables attendent les dresseurs. Installez-vous chacun sur un cercle de la même table : l'échange s'ouvre.",
 		Points = {
 			{ Icon = "◎", Color = Color3.fromRGB(110, 230, 150), Title = "Face à face", Text = "Le cercle devient vert quand tu es dessus. Le quitter annule l'échange." },
 			{ Icon = "OK", Color = GOLD, Title = "Prêt, puis Confirmer", Text = "Les offres se verrouillent et un compte à rebours te laisse tout vérifier." },
@@ -539,8 +539,8 @@ local CHAPTERS: { Chapter } = {
 		Text = "Chaque quartier a son habitant : parle-leur (touche E), ils ont tous quelque chose à t'offrir.",
 		Points = {
 			{ Icon = "◆", Color = Color3.fromRGB(255, 190, 110), Title = "Oswin, aux entrepôts", Text = "Son étal change chaque jour : trois créatures choisies." },
-			{ Icon = "★", Color = Color3.fromRGB(190, 140, 255), Title = "Maelis, à la galerie", Text = "Réunis toutes les créatures d'un élément pour une belle récompense." },
-			{ Icon = "♥", Color = Color3.fromRGB(150, 210, 110), Title = "Gaëlle, au parc", Text = "Un panier de gemmes t'attend chaque jour." },
+			{ Icon = "★", Color = Color3.fromRGB(190, 140, 255), Title = "Maelis, au donjon", Text = "Réunis toutes les créatures d'un élément pour une belle récompense." },
+			{ Icon = "♥", Color = Color3.fromRGB(150, 210, 110), Title = "Gaëlle, à la ferme", Text = "Un panier de gemmes t'attend chaque jour." },
 		},
 		Draw = function(f)
 			villagers(f)
