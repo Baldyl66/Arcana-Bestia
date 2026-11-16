@@ -518,12 +518,13 @@ function Panels.help(parent: Instance)
 	pages[4] = function()
 		heading("La cité de Brumeval", 1)
 		local places = {
-			{ "Les Arènes des Champions", "Six arènes de duel, trois à l'est et trois à l'ouest, tenues par Varek. Au centre : l'autel des boosters.", Color3.fromRGB(150, 110, 255) },
-			{ "La Grand-Place (sud)", "La boutique d'Elya, la taverne du Griffon Doré et la fontaine.", Color3.fromRGB(255, 200, 90) },
-			{ "Le quartier des Artisans (ouest)", "La forge de Borin : vente et fusion de doublons.", Color3.fromRGB(255, 120, 60) },
-			{ "Le quartier des Mages (nord)", "La tour de Maître Orin et le sanctuaire des cristaux de Sélène.", Color3.fromRGB(120, 180, 255) },
-			{ "Le Jardin du Prieuré (sud-est)", "Le seul vrai coin de verdure de la ville.", Color3.fromRGB(95, 205, 110) },
-			{ "Les remparts", "Des escaliers mènent au chemin de ronde. La nuit tombe toutes les 24 minutes : les braseros s'allument.", Color3.fromRGB(200, 190, 220) },
+			{ "L'autel arcanique (centre)", "L'autel des boosters, au milieu de la grande place ronde.", Color3.fromRGB(130, 215, 255) },
+			{ "Les colisées (est et ouest)", "Six Arènes des Champions tenues par Varek. Rhéa entraîne les dresseurs à l'ouest.", Color3.fromRGB(150, 110, 255) },
+			{ "La Grand-Place (sud)", "La boutique d'Elya, le Comptoir des Merveilles, les étals et l'estrade des bardes.", Color3.fromRGB(255, 200, 90) },
+			{ "La forge (nord-ouest)", "La forge de Borin : vente et fusion de doublons.", Color3.fromRGB(255, 120, 60) },
+			{ "La galerie des collections (nord)", "Les vitrines de la cité et Maelis, l'archiviste.", Color3.fromRGB(190, 140, 255) },
+			{ "La bourse aux cartes (sud-ouest)", "Les tables d'échange entre dresseurs et l'étal d'Oswin.", Color3.fromRGB(230, 110, 110) },
+			{ "Le parc et l'arbre géant (est)", "Gaëlle et son panier au parc ; un escalier monte jusqu'au belvédère de l'arbre géant.", Color3.fromRGB(95, 205, 110) },
 		}
 		for i, p in ipairs(places) do
 			local row = box(body, { Size = UDim2.new(1, -8, 0, 62), LayoutOrder = 1 + i, BackgroundColor3 = INK, BackgroundTransparency = 0.3 }, 10)

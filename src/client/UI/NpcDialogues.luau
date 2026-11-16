@@ -356,8 +356,8 @@ local function odile(ctx: Context, npc)
 	local tips = {
 		"Échange tes doublons au Comptoir des Échanges, sur la Grand-Place : installez-vous chacun sur un cercle de la même table.",
 		"Oswin, aux entrepôts, vend chaque jour trois créatures choisies. Passe le voir !",
-		"Maelis, aux archives du donjon, récompense ceux qui réunissent toutes les créatures d'un élément.",
-		"Gaëlle, à la ferme, offre un panier de gemmes chaque jour. Il serait dommage de l'oublier !",
+		"Maelis, à la galerie des collections, récompense ceux qui réunissent toutes les créatures d'un élément.",
+		"Gaëlle, à l'entrée du parc, offre un panier de gemmes chaque jour. Il serait dommage de l'oublier !",
 		"Approche-toi du Cercle des Arcanes pendant un duel : tu pourras le regarder en direct.",
 	}
 	ctx.Dialogue:Open(npc, npc.Greeting, {
